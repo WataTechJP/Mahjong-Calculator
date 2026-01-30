@@ -4,6 +4,20 @@ export type TileSuit = 'man' | 'pin' | 'sou' | 'honor';
 // 牌のID (例: "1m", "5p", "9s", "1z"〜"7z")
 export type TileId = string;
 
+// 認識された牌
+export interface RecognizedTile {
+  id: TileId;
+  name: string;
+  confidence: number;
+}
+
+// 認識結果
+export interface RecognitionResult {
+  tiles: RecognizedTile[];
+  raw_response?: string;
+  error?: string;
+}
+
 // 風
 export type Wind = 'east' | 'south' | 'west' | 'north';
 

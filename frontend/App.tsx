@@ -6,8 +6,9 @@ import { ScoreboardScreen } from './src/screens/ScoreboardScreen';
 import { StartGameScreen } from './src/screens/StartGameScreen';
 import { RecordWinScreen } from './src/screens/RecordWinScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
+import { TileRecognitionScreen } from './src/screens/TileRecognitionScreen';
 
-type Screen = 'scoreboard' | 'startGame' | 'recordWin' | 'history';
+type Screen = 'scoreboard' | 'startGame' | 'recordWin' | 'history' | 'recognition';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('scoreboard');
@@ -20,12 +21,15 @@ export default function App() {
         return <RecordWinScreen onBack={() => setCurrentScreen('scoreboard')} />;
       case 'history':
         return <HistoryScreen onBack={() => setCurrentScreen('scoreboard')} />;
+      case 'recognition':
+        return <TileRecognitionScreen onBack={() => setCurrentScreen('scoreboard')} />;
       default:
         return (
           <ScoreboardScreen
             onStartGame={() => setCurrentScreen('startGame')}
             onRecordWin={() => setCurrentScreen('recordWin')}
             onShowHistory={() => setCurrentScreen('history')}
+            onRecognition={() => setCurrentScreen('recognition')}
           />
         );
     }

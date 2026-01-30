@@ -14,9 +14,10 @@ interface Props {
   onStartGame: () => void;
   onRecordWin: () => void;
   onShowHistory: () => void;
+  onRecognition: () => void;
 }
 
-export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory }: Props) {
+export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory, onRecognition }: Props) {
   const { players, round, isGameStarted, resetGame, undoLastAction, history } = useGameStore();
 
   const getRoundLabel = () => {
@@ -75,9 +76,14 @@ export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory }: Pr
 
       {/* アクションボタン */}
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionButton} onPress={onRecordWin}>
-          <Text style={styles.actionButtonText}>和了を記録</Text>
-        </TouchableOpacity>
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.actionButton} onPress={onRecordWin}>
+            <Text style={styles.actionButtonText}>和了を記録</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.recognitionButton} onPress={onRecognition}>
+            <Text style={styles.actionButtonText}>画像で入力</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.actionRow}>
           <TouchableOpacity
@@ -200,7 +206,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionButton: {
+    flex: 1,
     backgroundColor: '#4CAF50',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  recognitionButton: {
+    flex: 1,
+    backgroundColor: '#3498db',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',

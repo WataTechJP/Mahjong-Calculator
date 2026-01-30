@@ -1,4 +1,4 @@
-import type { CalculateRequest, ScoreResult } from '../types/mahjong';
+import type { CalculateRequest, ScoreResult, RecognitionResult } from '../types/mahjong';
 
 // 開発環境では localhost、実機では適切なIPに変更
 const API_BASE_URL = 'http://localhost:8000';
@@ -19,11 +19,7 @@ export async function calculateScore(request: CalculateRequest): Promise<ScoreRe
   return response.json();
 }
 
-export async function recognizeTiles(imageUri: string): Promise<{
-  recognized: string[];
-  confidence: number;
-  message?: string;
-}> {
+export async function recognizeTiles(imageUri: string): Promise<RecognitionResult> {
   const formData = new FormData();
   formData.append('image', {
     uri: imageUri,

@@ -1,0 +1,29 @@
+# Dependencies
+frontend/node_modules/
+backend/venv/
+backend/__pycache__/
+
+# Expo
+frontend/.expo/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+*.swp
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build
+frontend/ios/
+frontend/android/

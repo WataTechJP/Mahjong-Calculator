@@ -1,0 +1,108 @@
+name: Generate Plan From Issue
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+jobs:
+  generate-plan:
+    if: github.event.issue.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_TITLE: ${{ github.event.issue.title }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      ISSUE_URL: ${{ github.event.issue.html_url }}
+      CODEX_NPM_PACKAGE: ${{ vars.CODEX_NPM_PACKAGE || '@openai/codex' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Codex CLI
+        run: npm install -g "$CODEX_NPM_PACKAGE"
+
+      - name: Generate plan markdown
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+            echo "OPENAI_API_KEY secret is not set."
+            exit 1
+          fi
+
+          mkdir -p plans
+          PLAN_FILE="plans/issue-${ISSUE_NUMBER}.md"
+
+          cat > /tmp/plan_prompt.md <<'PROMPT'
+          あなたはこのリポジトリの実装担当エンジニアです。
+          以下のGitHub Issueを読み、実装計画を日本語Markdownで作成してください。
+
+          要件:
+          - 実装コードはまだ書かない
+          - 具体的な作業順序にする
+          - チェックリスト形式でタスク化する
+          - 必ず以下の見出しを含める:
+            1. Goal
+            2. Scope
+            3. Implementation Tasks
+            4. Risks
+            5. Validation
+            6. Rollback
+          - このリポジトリ構造(frontend/backend)を前提にする
+          PROMPT
+
+          {
+            echo "# Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}"
+            echo
+            echo "Issue URL: ${ISSUE_URL}"
+            echo
+            echo "## Original Issue"
+            echo
+            printf "%s\n" "${ISSUE_BODY}"
+            echo
+            echo "## Instructions"
+            cat /tmp/plan_prompt.md
+          } > /tmp/full_prompt.md
+
+          # Codex CLI variants: try codex exec first, then plain codex.
+          if codex exec < /tmp/full_prompt.md > "$PLAN_FILE" 2>/tmp/codex.err; then
+            echo "Generated with: codex exec"
+          elif codex < /tmp/full_prompt.md > "$PLAN_FILE" 2>/tmp/codex.err; then
+            echo "Generated with: codex"
+          else
+            echo "Codex CLI failed to generate plan"
+            cat /tmp/codex.err || true
+            exit 1
+          fi
+
+          if [[ ! -s "$PLAN_FILE" ]]; then
+            echo "Generated plan file is empty"
+            exit 1
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/issue-plan-${{ github.event.issue.number }}
+          title: docs(plan): add issue-${{ github.event.issue.number }} plan
+          commit-message: docs(plan): add plan for issue #${{ github.event.issue.number }}
+          body: |
+            Auto-generated implementation plan from GitHub Issue #${{ github.event.issue.number }}.
+
+            - Source: ${{ github.event.issue.html_url }}
+            - Output: `plans/issue-${{ github.event.issue.number }}.md`
+          add-paths: |
+            plans/issue-${{ github.event.issue.number }}.md

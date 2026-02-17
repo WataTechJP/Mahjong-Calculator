@@ -161,7 +161,7 @@ async def calculate_score(request: CalculateRequest):
             round_wind=WIND_MAP.get(request.round_wind, EAST),
             options=OptionalRules(
                 has_open_tanyao=True,
-                has_aka_dora=True,
+                has_aka_dora=False,  # 赤ドラは現在未対応（UIで指定できないため）
             )
         )
 

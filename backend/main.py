@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -6,8 +6,16 @@ from mahjong.hand_calculating.hand import HandCalculator
 from mahjong.hand_calculating.hand_config import HandConfig, OptionalRules
 from mahjong.tile import TilesConverter
 from mahjong.constants import EAST, SOUTH, WEST, NORTH
+import base64
+import os
+import json
+import re
+from openai import OpenAI
 
 app = FastAPI(title="Mahjong Calculator API")
+
+# OpenAI client (環境変数 OPENAI_API_KEY から読み込み)
+openai_client = OpenAI() if os.getenv("OPENAI_API_KEY") else None
 
 app.add_middleware(
     CORSMiddleware,
@@ -153,7 +161,7 @@ async def calculate_score(request: CalculateRequest):
             round_wind=WIND_MAP.get(request.round_wind, EAST),
             options=OptionalRules(
                 has_open_tanyao=True,
-                has_aka_dora=True,
+                has_aka_dora=False,  # 赤ドラは現在未対応（UIで指定できないため）
             )
         )
 
@@ -231,15 +239,190 @@ async def apply_score(request: ApplyScoreRequest):
     }
 
 
-@app.post("/recognize")
+class RecognizedTile(BaseModel):
+    """認識された牌"""
+    id: str  # "1m", "5p", "7z" など
+    name: str  # "一萬", "五筒", "中" など
+    confidence: float  # 0.0 - 1.0
+
+
+class RecognitionResponse(BaseModel):
+    """認識結果"""
+    tiles: list[RecognizedTile]
+    raw_response: Optional[str] = None
+    error: Optional[str] = None
+
+
+# 牌名からIDへのマッピング
+TILE_NAME_TO_ID = {
+    # 萬子
+    "一萬": "1m", "二萬": "2m", "三萬": "3m", "四萬": "4m", "五萬": "5m",
+    "六萬": "6m", "七萬": "7m", "八萬": "8m", "九萬": "9m",
+    "1萬": "1m", "2萬": "2m", "3萬": "3m", "4萬": "4m", "5萬": "5m",
+    "6萬": "6m", "7萬": "7m", "8萬": "8m", "9萬": "9m",
+    # 筒子
+    "一筒": "1p", "二筒": "2p", "三筒": "3p", "四筒": "4p", "五筒": "5p",
+    "六筒": "6p", "七筒": "7p", "八筒": "8p", "九筒": "9p",
+    "1筒": "1p", "2筒": "2p", "3筒": "3p", "4筒": "4p", "5筒": "5p",
+    "6筒": "6p", "7筒": "7p", "8筒": "8p", "9筒": "9p",
+    # 索子
+    "一索": "1s", "二索": "2s", "三索": "3s", "四索": "4s", "五索": "5s",
+    "六索": "6s", "七索": "7s", "八索": "8s", "九索": "9s",
+    "1索": "1s", "2索": "2s", "3索": "3s", "4索": "4s", "5索": "5s",
+    "6索": "6s", "7索": "7s", "8索": "8s", "9索": "9s",
+    # 字牌
+    "東": "1z", "南": "2z", "西": "3z", "北": "4z",
+    "白": "5z", "發": "6z", "発": "6z", "中": "7z",
+}
+
+# IDから牌名へのマッピング
+TILE_ID_TO_NAME = {
+    "1m": "一萬", "2m": "二萬", "3m": "三萬", "4m": "四萬", "5m": "五萬",
+    "6m": "六萬", "7m": "七萬", "8m": "八萬", "9m": "九萬",
+    "1p": "一筒", "2p": "二筒", "3p": "三筒", "4p": "四筒", "5p": "五筒",
+    "6p": "六筒", "7p": "七筒", "8p": "八筒", "9p": "九筒",
+    "1s": "一索", "2s": "二索", "3s": "三索", "4s": "四索", "5s": "五索",
+    "6s": "六索", "7s": "七索", "8s": "八索", "9s": "九索",
+    "1z": "東", "2z": "南", "3z": "西", "4z": "北",
+    "5z": "白", "6z": "發", "7z": "中",
+}
+
+
+def parse_tile_response(response_text: str) -> list[RecognizedTile]:
+    """Vision APIのレスポンスから牌リストをパース"""
+    tiles = []
+
+    # JSON形式での抽出を試みる
+    json_match = re.search(r'\[.*?\]', response_text, re.DOTALL)
+    if json_match:
+        try:
+            tile_list = json.loads(json_match.group())
+            for item in tile_list:
+                if isinstance(item, str):
+                    # "1m", "5p" 形式
+                    tile_id = item.lower().strip()
+                    if tile_id in TILE_ID_TO_NAME:
+                        tiles.append(RecognizedTile(
+                            id=tile_id,
+                            name=TILE_ID_TO_NAME[tile_id],
+                            confidence=0.9
+                        ))
+                elif isinstance(item, dict):
+                    tile_id = item.get("id", "").lower().strip()
+                    confidence = item.get("confidence", 0.9)
+                    if tile_id in TILE_ID_TO_NAME:
+                        tiles.append(RecognizedTile(
+                            id=tile_id,
+                            name=TILE_ID_TO_NAME[tile_id],
+                            confidence=confidence
+                        ))
+            return tiles
+        except json.JSONDecodeError:
+            pass
+
+    # テキストから牌名を抽出
+    for name, tile_id in TILE_NAME_TO_ID.items():
+        count = response_text.count(name)
+        for _ in range(count):
+            tiles.append(RecognizedTile(
+                id=tile_id,
+                name=TILE_ID_TO_NAME[tile_id],
+                confidence=0.8
+            ))
+
+    return tiles
+
+
+@app.post("/recognize", response_model=RecognitionResponse)
 async def recognize_tiles(image: UploadFile = File(...)):
-    """画像から牌を認識（将来実装）"""
-    # TODO: 画像認識の実装
-    return {
-        "recognized": [],
-        "confidence": 0.0,
-        "message": "Image recognition not yet implemented"
-    }
+    """画像から牌を認識"""
+
+    # OpenAI APIキーが未設定の場合はダミーデータを返す（開発・テスト用）
+    if not openai_client:
+        dummy_tiles = [
+            RecognizedTile(id="1m", name="一萬", confidence=0.95),
+            RecognizedTile(id="2m", name="二萬", confidence=0.92),
+            RecognizedTile(id="3m", name="三萬", confidence=0.88),
+            RecognizedTile(id="4p", name="四筒", confidence=0.91),
+            RecognizedTile(id="5p", name="五筒", confidence=0.75),  # 低信頼度（警告表示テスト用）
+            RecognizedTile(id="6p", name="六筒", confidence=0.93),
+            RecognizedTile(id="7s", name="七索", confidence=0.89),
+            RecognizedTile(id="8s", name="八索", confidence=0.94),
+            RecognizedTile(id="9s", name="九索", confidence=0.90),
+            RecognizedTile(id="1z", name="東", confidence=0.96),
+            RecognizedTile(id="1z", name="東", confidence=0.97),
+            RecognizedTile(id="1z", name="東", confidence=0.65),  # 低信頼度
+            RecognizedTile(id="7z", name="中", confidence=0.98),
+            RecognizedTile(id="7z", name="中", confidence=0.99),  # 和了牌
+        ]
+        return RecognitionResponse(
+            tiles=dummy_tiles,
+            raw_response="[DUMMY MODE] OpenAI API key not configured. Returning test data."
+        )
+
+    try:
+        # 画像をBase64エンコード
+        image_content = await image.read()
+        base64_image = base64.b64encode(image_content).decode("utf-8")
+
+        # 画像のMIMEタイプを判定
+        content_type = image.content_type or "image/jpeg"
+
+        # Vision APIに送信
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """あなたは麻雀牌を認識する専門家です。
+画像に写っている麻雀牌を左から右の順番で識別してください。
+
+出力形式は必ず以下のJSON配列のみを返してください：
+["1m", "2m", "3m", "4p", "5p", "6p", "7s", "8s", "9s", "1z", "1z", "1z", "7z", "7z"]
+
+牌のID形式：
+- 萬子: 1m, 2m, 3m, 4m, 5m, 6m, 7m, 8m, 9m
+- 筒子: 1p, 2p, 3p, 4p, 5p, 6p, 7p, 8p, 9p
+- 索子: 1s, 2s, 3s, 4s, 5s, 6s, 7s, 8s, 9s
+- 字牌: 1z(東), 2z(南), 3z(西), 4z(北), 5z(白), 6z(發), 7z(中)
+
+注意：
+- 同じ牌が複数ある場合は、その数だけIDを繰り返してください
+- 確認できない牌がある場合は "?" を使ってください
+- JSON配列のみを出力し、他の説明は不要です"""
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "この画像の麻雀牌を左から順番に識別してください。JSON配列で返してください。"
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{content_type};base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=500
+        )
+
+        raw_response = response.choices[0].message.content or ""
+        tiles = parse_tile_response(raw_response)
+
+        return RecognitionResponse(
+            tiles=tiles,
+            raw_response=raw_response
+        )
+
+    except Exception as e:
+        return RecognitionResponse(
+            tiles=[],
+            error=str(e)
+        )
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Animated,
 } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import { calculateScore } from '../api/client';
@@ -67,7 +68,40 @@ export function RecordWinScreen({ onBack }: Props) {
   const [fu, setFu] = useState<number>(30);
   const [isRiichi, setIsRiichi] = useState(false);
 
+  const previewScale = useRef(new Animated.Value(1)).current;
+  const previewOpacity = useRef(new Animated.Value(1)).current;
+
   const isWinnerDealer = winnerIndex === round.dealerIndex;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(previewScale, {
+          toValue: 1.1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(previewOpacity, {
+          toValue: 0.7,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.spring(previewScale, {
+          toValue: 1,
+          friction: 3,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.timing(previewOpacity, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [han, fu, winnerIndex, isTsumo]);
 
   const getScore = (): { main: number; additional: number } | null => {
     const scoreTable = isTsumo ? SCORE_PRESETS.tsumo : SCORE_PRESETS.ron;
@@ -151,6 +185,7 @@ export function RecordWinScreen({ onBack }: Props) {
           <TouchableOpacity
             style={[styles.toggleButton, !isTsumo && styles.toggleActive]}
             onPress={() => setIsTsumo(false)}
+            activeOpacity={0.7}
           >
             <Text style={[styles.toggleText, !isTsumo && styles.toggleTextActive]}>
               ロン
@@ -159,6 +194,7 @@ export function RecordWinScreen({ onBack }: Props) {
           <TouchableOpacity
             style={[styles.toggleButton, isTsumo && styles.toggleActive]}
             onPress={() => setIsTsumo(true)}
+            activeOpacity={0.7}
           >
             <Text style={[styles.toggleText, isTsumo && styles.toggleTextActive]}>
               ツモ
@@ -264,7 +300,15 @@ export function RecordWinScreen({ onBack }: Props) {
       </View>
 
       {/* 点数プレビュー */}
-      <View style={styles.previewSection}>
+      <Animated.View
+        style={[
+          styles.previewSection,
+          {
+            transform: [{ scale: previewScale }],
+            opacity: previewOpacity,
+          },
+        ]}
+      >
         <Text style={styles.previewLabel}>点数</Text>
         <Text style={styles.previewScore}>{displayScore}</Text>
         {han >= 5 && (
@@ -275,14 +319,14 @@ export function RecordWinScreen({ onBack }: Props) {
              han <= 12 ? '三倍満' : '役満'}
           </Text>
         )}
-      </View>
+      </Animated.View>
 
       {/* アクション */}
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm} activeOpacity={0.7}>
           <Text style={styles.confirmButtonText}>確定</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelButton} onPress={onBack}>
+        <TouchableOpacity style={styles.cancelButton} onPress={onBack} activeOpacity={0.7}>
           <Text style={styles.cancelButtonText}>キャンセル</Text>
         </TouchableOpacity>
       </View>

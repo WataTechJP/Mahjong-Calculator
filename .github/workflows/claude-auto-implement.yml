@@ -1,0 +1,167 @@
+name: Claude Auto-Implement Issue
+
+on:
+  issues:
+    types: [opened]
+
+# 同じ Issue への並列実行を防ぐ（cancel ではなく queue）
+concurrency:
+  group: claude-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # git push / branch 作成
+  issues: write          # Issue コメント投稿
+  pull-requests: write   # PR 作成
+
+jobs:
+  auto-implement:
+    runs-on: ubuntu-latest
+
+    # wontfix / question / duplicate / invalid ラベルはスキップ
+    if: |
+      !contains(github.event.issue.labels.*.name, 'wontfix') &&
+      !contains(github.event.issue.labels.*.name, 'question') &&
+      !contains(github.event.issue.labels.*.name, 'duplicate') &&
+      !contains(github.event.issue.labels.*.name, 'invalid')
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Claude が時間がかかるため、即時に「作業中」コメントを投稿
+      - name: Post acknowledgment comment
+        run: |
+          gh issue comment "${{ github.event.issue.number }}" \
+            --body "**Claude Code が Issue を分析中です。**
+
+          1. 実装計画をこの Issue のコメントに投稿します。
+          2. ブランチ \`feat/issue-${{ github.event.issue.number }}\` を作成し、実装後に PR を開きます。
+
+          複雑な Issue の場合は 2〜5 分かかることがあります。"
+
+      - name: Claude implements the issue
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: "--allowedTools Bash,Read,Write,Edit,Glob,Grep"
+          show_full_output: "true"
+          prompt: |
+            You are Claude Code running autonomously in GitHub Actions for
+            the repository WataTechJP/Mahjong-Calculator.
+
+            ## Issue to implement
+
+            - Number : #${{ github.event.issue.number }}
+            - Title  : ${{ github.event.issue.title }}
+            - URL    : ${{ github.event.issue.html_url }}
+            - Body   :
+            ${{ github.event.issue.body }}
+
+            ---
+
+            ## Project architecture
+
+            Full-stack mahjong score calculator. Two surfaces:
+
+            ### Frontend — `frontend/` (React Native + Expo + TypeScript)
+            - `frontend/App.tsx` — entry point. Screen navigation is a manual
+              `currentScreen` state string (no React Navigation / Expo Router).
+              Adding a new screen requires a new `case` here and a callback prop.
+            - `frontend/src/screens/` — ScoreboardScreen, StartGameScreen,
+              RecordWinScreen, HistoryScreen, TileRecognitionScreen
+            - `frontend/src/components/` — reusable UI components
+            - `frontend/src/store/gameStore.ts` — Zustand store persisted via
+              AsyncStorage under key `mahjong-game-storage`
+            - `frontend/src/api/client.ts` — API_BASE_URL hardcoded to
+              `http://localhost:8000`
+            - `frontend/src/types/mahjong.ts` — all shared TypeScript types
+            - Style: 2-space indent, camelCase vars/fns, PascalCase components
+
+            ### Backend — `backend/main.py` (Python FastAPI, single file)
+            - POST /calculate   — TileInput → han/fu/cost/yaku via `mahjong` lib
+            - POST /apply-score — applies score diff to 4 players
+            - POST /recognize   — multipart image → tile list via OpenAI gpt-4o
+            - Style: PEP 8, 4-space indent, snake_case, PascalCase Pydantic models
+            - OPENAI_API_KEY env var required for /recognize (dummy data without it)
+
+            ### Commit convention
+            `<type>: <brief change>` — types: feat, fix, refactor, docs
+            One logical change per commit. Short, imperative messages.
+
+            ### No automated test suite
+            Manual validation only. Include reproducible manual test steps in the PR.
+
+            ---
+
+            ## PHASE 1 — Implementation plan (post as issue comment)
+
+            Analyze the issue thoroughly. Then:
+
+            **If the issue is too vague to implement** (missing requirements, no
+            reproduction steps for a bug, contradictory specs), post a comment
+            asking specific clarifying questions and STOP — do not proceed to PHASE 2.
+
+            **Otherwise**, post a structured implementation plan as a GitHub comment:
+            ```
+            gh issue comment ${{ github.event.issue.number }} --body "..."
+            ```
+
+            The comment MUST contain these sections:
+            - **理解 (Understanding)** — what you understand the issue is asking for
+            - **スコープ (Scope)** — which files will change (frontend / backend / both)
+            - **実装タスク (Implementation Tasks)** — ordered checklist of concrete steps
+            - **受け入れ基準 (Acceptance Criteria)** — how to verify correctness
+            - **リスク (Risks)** — regression risks and ambiguities
+
+            ---
+
+            ## PHASE 2 — Implementation
+
+            1. Check if the branch exists remotely:
+               ```
+               git ls-remote --exit-code --heads origin feat/issue-${{ github.event.issue.number }} && echo EXISTS || echo NEW
+               ```
+               - Exists → `git checkout feat/issue-${{ github.event.issue.number }}`
+               - New    → `git checkout -b feat/issue-${{ github.event.issue.number }}`
+
+            2. Implement all tasks from the plan. Follow conventions above.
+               Do NOT modify unrelated files. Do NOT add new npm/pip packages
+               without a strong reason justified in the PR body.
+
+            3. Commit with the commit convention. One commit per logical change.
+
+            4. Push:
+               ```
+               git push origin feat/issue-${{ github.event.issue.number }}
+               ```
+
+            5. Create a pull request:
+               ```
+               gh pr create \
+                 --title "<concise PR title>" \
+                 --body "..." \
+                 --head "feat/issue-${{ github.event.issue.number }}" \
+                 --base main
+               ```
+               PR body MUST include:
+               - Summary of changes
+               - `Closes #${{ github.event.issue.number }}`
+               - Key files changed
+               - Manual test steps (since there is no automated test suite)
+
+            ---
+
+            ## Constraints
+            - Never commit secrets, API keys, or `.env` files.
+            - Never force-push.
+            - Use `gh` CLI for all GitHub API interactions (pre-authenticated).
+            - Working directory is the repository root.
+            - If PHASE 1 determines the issue is unclear, stop after the comment.
+              Do not create a branch or PR in that case.

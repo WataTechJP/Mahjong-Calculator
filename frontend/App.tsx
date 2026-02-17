@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Animated } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { ScoreboardScreen } from './src/screens/ScoreboardScreen';
 import { StartGameScreen } from './src/screens/StartGameScreen';
@@ -12,24 +12,40 @@ type Screen = 'scoreboard' | 'startGame' | 'recordWin' | 'history' | 'recognitio
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('scoreboard');
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  const handleScreenChange = (newScreen: Screen) => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start(() => {
+      setCurrentScreen(newScreen);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
 
   const renderScreen = () => {
     switch (currentScreen) {
       case 'startGame':
-        return <StartGameScreen onBack={() => setCurrentScreen('scoreboard')} />;
+        return <StartGameScreen onBack={() => handleScreenChange('scoreboard')} />;
       case 'recordWin':
-        return <RecordWinScreen onBack={() => setCurrentScreen('scoreboard')} />;
+        return <RecordWinScreen onBack={() => handleScreenChange('scoreboard')} />;
       case 'history':
-        return <HistoryScreen onBack={() => setCurrentScreen('scoreboard')} />;
+        return <HistoryScreen onBack={() => handleScreenChange('scoreboard')} />;
       case 'recognition':
-        return <TileRecognitionScreen onBack={() => setCurrentScreen('scoreboard')} />;
+        return <TileRecognitionScreen onBack={() => handleScreenChange('scoreboard')} />;
       default:
         return (
           <ScoreboardScreen
-            onStartGame={() => setCurrentScreen('startGame')}
-            onRecordWin={() => setCurrentScreen('recordWin')}
-            onShowHistory={() => setCurrentScreen('history')}
-            onRecognition={() => setCurrentScreen('recognition')}
+            onStartGame={() => handleScreenChange('startGame')}
+            onRecordWin={() => handleScreenChange('recordWin')}
+            onShowHistory={() => handleScreenChange('history')}
+            onRecognition={() => handleScreenChange('recognition')}
           />
         );
     }
@@ -39,7 +55,9 @@ export default function App() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
-        {renderScreen()}
+        <Animated.View style={[styles.screenContainer, { opacity: fadeAnim }]}>
+          {renderScreen()}
+        </Animated.View>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -49,5 +67,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a2e',
+  },
+  screenContainer: {
+    flex: 1,
   },
 });

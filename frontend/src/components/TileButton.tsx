@@ -1,5 +1,5 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import React, { useRef } from 'react';
+import { TouchableOpacity, Text, StyleSheet, View, Animated } from 'react-native';
 import type { TileId } from '../types/mahjong';
 
 // 牌IDから表示名へのマッピング
@@ -79,6 +79,23 @@ export function TileButton({
   const tileInfo = TILE_DISPLAY[tileId] || TILE_DISPLAY['?'];
   const isLowConfidence = confidence !== undefined && confidence < 0.8;
   const displayWarning = showWarning || isLowConfidence;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const sizeStyles = {
     small: { width: 36, height: 48, fontSize: 14 },
@@ -89,33 +106,38 @@ export function TileButton({
   const currentSize = sizeStyles[size];
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.tile,
-        {
-          width: currentSize.width,
-          height: currentSize.height,
-          borderColor: displayWarning ? '#e74c3c' : selected ? '#FFD700' : '#555',
-          borderWidth: displayWarning || selected ? 2 : 1,
-        },
-      ]}
-      onPress={onPress}
-      disabled={!onPress}
-    >
-      <Text
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
         style={[
-          styles.tileText,
-          { fontSize: currentSize.fontSize, color: tileInfo.color },
+          styles.tile,
+          {
+            width: currentSize.width,
+            height: currentSize.height,
+            borderColor: displayWarning ? '#e74c3c' : selected ? '#FFD700' : '#555',
+            borderWidth: displayWarning || selected ? 2 : 1,
+          },
         ]}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={!onPress}
+        activeOpacity={0.7}
       >
-        {TILE_SHORT[tileId] || tileId}
-      </Text>
-      {displayWarning && (
-        <View style={styles.warningBadge}>
-          <Text style={styles.warningText}>!</Text>
-        </View>
-      )}
-    </TouchableOpacity>
+        <Text
+          style={[
+            styles.tileText,
+            { fontSize: currentSize.fontSize, color: tileInfo.color },
+          ]}
+        >
+          {TILE_SHORT[tileId] || tileId}
+        </Text>
+        {displayWarning && (
+          <View style={styles.warningBadge}>
+            <Text style={styles.warningText}>!</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -138,6 +160,7 @@ export function EmptyTileSlot({ onPress, size = 'medium' }: EmptyTileSlotProps) 
     <TouchableOpacity
       style={[styles.emptySlot, { width: currentSize.width, height: currentSize.height }]}
       onPress={onPress}
+      activeOpacity={0.7}
     >
       <Text style={styles.emptyText}>+</Text>
     </TouchableOpacity>

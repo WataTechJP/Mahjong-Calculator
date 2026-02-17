@@ -50,7 +50,8 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: "--max-turns 40 --allowedTools Bash,Read,Write,Edit,Glob,Grep"
+          claude_args: "--allowedTools Bash,Read,Write,Edit,Glob,Grep"
+          show_full_output: "true"
           prompt: |
             You are Claude Code running autonomously in GitHub Actions for
             the repository WataTechJP/Mahjong-Calculator.

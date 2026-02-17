@@ -42,6 +42,17 @@ jobs:
             echo "OPENAI_API_KEY secret is not set."
             exit 1
           fi
+          # Normalize key to avoid hidden CR/LF or extra spaces from secret copy/paste.
+          OPENAI_API_KEY="$(printf '%s' "$OPENAI_API_KEY" | tr -d '\r\n' | xargs)"
+          export OPENAI_API_KEY
+          if [[ -z "$OPENAI_API_KEY" ]]; then
+            echo "OPENAI_API_KEY is empty after normalization."
+            exit 1
+          fi
+          if [[ "${OPENAI_API_KEY}" != sk-* ]]; then
+            echo "OPENAI_API_KEY format looks invalid (must start with 'sk-')."
+            exit 1
+          fi
 
           mkdir -p plans
           PLAN_FILE="plans/issue-${ISSUE_NUMBER}.md"
@@ -78,7 +89,7 @@ jobs:
           } > /tmp/full_prompt.md
 
           PROMPT_CONTENT="$(cat /tmp/full_prompt.md)"
-          if codex exec --full-auto --output-last-message "$PLAN_FILE" "$PROMPT_CONTENT" 2>/tmp/codex.err; then
+          if OPENAI_API_KEY="$OPENAI_API_KEY" codex exec --full-auto --output-last-message "$PLAN_FILE" "$PROMPT_CONTENT" 2>/tmp/codex.err; then
             echo "Generated with: codex exec --output-last-message"
           else
             echo "Codex CLI failed to generate plan"

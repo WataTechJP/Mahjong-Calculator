@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Animated } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import type { HistoryEntry, Wind } from '../types/mahjong';
 
@@ -37,42 +37,72 @@ export function HistoryScreen({ onBack }: Props) {
     }
   };
 
-  const renderItem = ({ item, index }: { item: HistoryEntry; index: number }) => (
-    <View style={styles.historyItem}>
-      <View style={styles.historyHeader}>
-        <Text style={styles.roundLabel}>{getRoundLabel(item)}</Text>
-        {item.round.honba > 0 && (
-          <Text style={styles.honbaLabel}>{item.round.honba}本場</Text>
+  const renderItem = ({ item, index }: { item: HistoryEntry; index: number }) => {
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(20)).current;
+
+    useEffect(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          delay: index * 50,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          delay: index * 50,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, []);
+
+    return (
+      <Animated.View
+        style={[
+          styles.historyItem,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View style={styles.historyHeader}>
+          <Text style={styles.roundLabel}>{getRoundLabel(item)}</Text>
+          {item.round.honba > 0 && (
+            <Text style={styles.honbaLabel}>{item.round.honba}本場</Text>
+          )}
+        </View>
+
+        <Text style={styles.resultText}>{getResultText(item)}</Text>
+
+        {item.result.scoreResult && (
+          <Text style={styles.scoreInfo}>
+            {item.result.scoreResult.han}翻 {item.result.scoreResult.fu}符 /{' '}
+            {item.result.scoreResult.cost.total || item.result.scoreResult.cost.main}点
+          </Text>
         )}
-      </View>
 
-      <Text style={styles.resultText}>{getResultText(item)}</Text>
-
-      {item.result.scoreResult && (
-        <Text style={styles.scoreInfo}>
-          {item.result.scoreResult.han}翻 {item.result.scoreResult.fu}符 /{' '}
-          {item.result.scoreResult.cost.total || item.result.scoreResult.cost.main}点
-        </Text>
-      )}
-
-      <View style={styles.scoreDiffs}>
-        {item.result.scoreDiffs.map((diff, i) => (
-          <View key={i} style={styles.diffItem}>
-            <Text style={styles.diffWind}>{WIND_LABELS[players[i]?.wind || 'east']}</Text>
-            <Text
-              style={[
-                styles.diffValue,
-                diff > 0 && styles.diffPositive,
-                diff < 0 && styles.diffNegative,
-              ]}
-            >
-              {diff > 0 ? '+' : ''}{diff.toLocaleString()}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
+        <View style={styles.scoreDiffs}>
+          {item.result.scoreDiffs.map((diff, i) => (
+            <View key={i} style={styles.diffItem}>
+              <Text style={styles.diffWind}>{WIND_LABELS[players[i]?.wind || 'east']}</Text>
+              <Text
+                style={[
+                  styles.diffValue,
+                  diff > 0 && styles.diffPositive,
+                  diff < 0 && styles.diffNegative,
+                ]}
+              >
+                {diff > 0 ? '+' : ''}{diff.toLocaleString()}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Animated.View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -91,7 +121,7 @@ export function HistoryScreen({ onBack }: Props) {
         />
       )}
 
-      <TouchableOpacity style={styles.backButton} onPress={onBack}>
+      <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.7}>
         <Text style={styles.backButtonText}>戻る</Text>
       </TouchableOpacity>
     </View>

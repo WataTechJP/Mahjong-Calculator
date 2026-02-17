@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 
@@ -15,12 +16,32 @@ interface Props {
 
 export function StartGameScreen({ onBack }: Props) {
   const [names, setNames] = useState(['', '', '', '']);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const { startGame } = useGameStore();
+  const borderAnimations = useRef(names.map(() => new Animated.Value(0))).current;
 
   const handleNameChange = (index: number, value: string) => {
     const newNames = [...names];
     newNames[index] = value;
     setNames(newNames);
+  };
+
+  const handleFocus = (index: number) => {
+    setFocusedIndex(index);
+    Animated.timing(borderAnimations[index], {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const handleBlur = (index: number) => {
+    setFocusedIndex(null);
+    Animated.timing(borderAnimations[index], {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
   };
 
   const handleStart = () => {
@@ -34,25 +55,36 @@ export function StartGameScreen({ onBack }: Props) {
     <ScrollView style={styles.container}>
       <Text style={styles.title}>プレイヤー設定</Text>
 
-      {names.map((name, index) => (
-        <View key={index} style={styles.inputRow}>
-          <Text style={styles.windLabel}>{windLabels[index]}</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={(value) => handleNameChange(index, value)}
-            placeholder={`プレイヤー${index + 1}`}
-            placeholderTextColor="#666"
-          />
-        </View>
-      ))}
+      {names.map((name, index) => {
+        const borderColor = borderAnimations[index].interpolate({
+          inputRange: [0, 1],
+          outputRange: ['#2d2d44', '#4CAF50'],
+        });
+
+        return (
+          <View key={index} style={styles.inputRow}>
+            <Text style={styles.windLabel}>{windLabels[index]}</Text>
+            <Animated.View style={[styles.inputContainer, { borderColor }]}>
+              <TextInput
+                style={styles.input}
+                value={name}
+                onChangeText={(value) => handleNameChange(index, value)}
+                onFocus={() => handleFocus(index)}
+                onBlur={() => handleBlur(index)}
+                placeholder={`プレイヤー${index + 1}`}
+                placeholderTextColor="#666"
+              />
+            </Animated.View>
+          </View>
+        );
+      })}
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.startButton} onPress={handleStart}>
+        <TouchableOpacity style={styles.startButton} onPress={handleStart} activeOpacity={0.7}>
           <Text style={styles.startButtonText}>ゲーム開始</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+        <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.7}>
           <Text style={styles.backButtonText}>戻る</Text>
         </TouchableOpacity>
       </View>
@@ -84,8 +116,13 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     width: 60,
   },
-  input: {
+  inputContainer: {
     flex: 1,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#2d2d44',
+  },
+  input: {
     backgroundColor: '#2d2d44',
     borderRadius: 8,
     padding: 14,

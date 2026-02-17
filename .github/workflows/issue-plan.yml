@@ -97,8 +97,8 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           branch: bot/issue-plan-${{ github.event.issue.number }}
-          title: docs(plan): add issue-${{ github.event.issue.number }} plan
-          commit-message: docs(plan): add plan for issue #${{ github.event.issue.number }}
+          title: "docs(plan): add issue-${{ github.event.issue.number }} plan"
+          commit-message: "docs(plan): add plan for issue #${{ github.event.issue.number }}"
           body: |
             Auto-generated implementation plan from GitHub Issue #${{ github.event.issue.number }}.
 

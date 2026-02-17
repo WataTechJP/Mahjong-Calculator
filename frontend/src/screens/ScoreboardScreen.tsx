@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import type { Wind } from '../types/mahjong';
 
@@ -19,6 +19,51 @@ interface Props {
 
 export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory, onRecognition }: Props) {
   const { players, round, isGameStarted, resetGame, undoLastAction, history } = useGameStore();
+  const fadeAnims = useRef(players.map(() => new Animated.Value(0))).current;
+  const slideAnims = useRef(players.map(() => new Animated.Value(30))).current;
+  const dealerPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isGameStarted) {
+      const animations = players.map((_, index) =>
+        Animated.parallel([
+          Animated.timing(fadeAnims[index], {
+            toValue: 1,
+            duration: 300,
+            delay: index * 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnims[index], {
+            toValue: 0,
+            duration: 300,
+            delay: index * 100,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      Animated.stagger(50, animations).start();
+
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(dealerPulse, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(dealerPulse, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+
+      return () => {
+        pulse.stop();
+      };
+    }
+  }, [isGameStarted, players.length]);
 
   const getRoundLabel = () => {
     const windLabel = round.roundWind === 'east' ? '東' : '南';
@@ -31,7 +76,7 @@ export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory, onRe
       <View style={styles.container}>
         <View style={styles.startContainer}>
           <Text style={styles.title}>麻雀点数計算</Text>
-          <TouchableOpacity style={styles.startButton} onPress={onStartGame}>
+          <TouchableOpacity style={styles.startButton} onPress={onStartGame} activeOpacity={0.8}>
             <Text style={styles.startButtonText}>ゲーム開始</Text>
           </TouchableOpacity>
         </View>
@@ -53,11 +98,18 @@ export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory, onRe
       {/* スコアボード */}
       <View style={styles.scoreBoard}>
         {players.map((player, index) => (
-          <View
+          <Animated.View
             key={index}
             style={[
               styles.playerCard,
               index === round.dealerIndex && styles.dealerCard,
+              {
+                opacity: fadeAnims[index],
+                transform: [
+                  { translateY: slideAnims[index] },
+                  index === round.dealerIndex ? { scale: dealerPulse } : { scale: 1 }
+                ],
+              },
             ]}
           >
             <View style={styles.playerHeader}>
@@ -70,17 +122,17 @@ export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory, onRe
             <Text style={styles.playerScore}>
               {player.score.toLocaleString()}
             </Text>
-          </View>
+          </Animated.View>
         ))}
       </View>
 
       {/* アクションボタン */}
       <View style={styles.actions}>
         <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.actionButton} onPress={onRecordWin}>
+          <TouchableOpacity style={styles.actionButton} onPress={onRecordWin} activeOpacity={0.7}>
             <Text style={styles.actionButtonText}>和了を記録</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.recognitionButton} onPress={onRecognition}>
+          <TouchableOpacity style={styles.recognitionButton} onPress={onRecognition} activeOpacity={0.7}>
             <Text style={styles.actionButtonText}>画像で入力</Text>
           </TouchableOpacity>
         </View>
@@ -90,16 +142,17 @@ export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory, onRe
             style={[styles.secondaryButton, !history.length && styles.disabledButton]}
             onPress={undoLastAction}
             disabled={!history.length}
+            activeOpacity={0.7}
           >
             <Text style={styles.secondaryButtonText}>取り消し</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryButton} onPress={onShowHistory}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={onShowHistory} activeOpacity={0.7}>
             <Text style={styles.secondaryButtonText}>履歴</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.resetButton} onPress={resetGame}>
+        <TouchableOpacity style={styles.resetButton} onPress={resetGame} activeOpacity={0.7}>
           <Text style={styles.resetButtonText}>ゲーム終了</Text>
         </TouchableOpacity>
       </View>

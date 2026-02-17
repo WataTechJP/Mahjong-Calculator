@@ -329,10 +329,10 @@ export function TileRecognitionScreen({ onBack }: Props) {
 
       {/* 画像取得ボタン */}
       <View style={styles.imageButtons}>
-        <TouchableOpacity style={styles.imageButton} onPress={() => pickImage(true)}>
+        <TouchableOpacity style={styles.imageButton} onPress={() => pickImage(true)} activeOpacity={0.7}>
           <Text style={styles.imageButtonText}>撮影</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.imageButton} onPress={() => pickImage(false)}>
+        <TouchableOpacity style={styles.imageButton} onPress={() => pickImage(false)} activeOpacity={0.7}>
           <Text style={styles.imageButtonText}>ギャラリー</Text>
         </TouchableOpacity>
       </View>
@@ -547,7 +547,7 @@ export function TileRecognitionScreen({ onBack }: Props) {
       </View>
 
       {/* 計算ボタン */}
-      <TouchableOpacity style={styles.calculateButton} onPress={handleCalculate}>
+      <TouchableOpacity style={styles.calculateButton} onPress={handleCalculate} activeOpacity={0.7}>
         <Text style={styles.calculateButtonText}>計算する</Text>
       </TouchableOpacity>
 
@@ -572,14 +572,14 @@ export function TileRecognitionScreen({ onBack }: Props) {
               ))}
             </View>
           )}
-          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm} activeOpacity={0.7}>
             <Text style={styles.confirmButtonText}>確定して適用</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* キャンセル */}
-      <TouchableOpacity style={styles.cancelButton} onPress={onBack}>
+      <TouchableOpacity style={styles.cancelButton} onPress={onBack} activeOpacity={0.7}>
         <Text style={styles.cancelButtonText}>キャンセル</Text>
       </TouchableOpacity>
 

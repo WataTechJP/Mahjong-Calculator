@@ -14,88 +14,63 @@ jobs:
   generate-plan:
     runs-on: ubuntu-latest
     env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       ISSUE_TITLE: ${{ github.event.issue.title }}
       ISSUE_BODY: ${{ github.event.issue.body }}
       ISSUE_URL: ${{ github.event.issue.html_url }}
-      CODEX_NPM_PACKAGE: ${{ vars.CODEX_NPM_PACKAGE || '@openai/codex' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Codex CLI
-        run: npm install -g "$CODEX_NPM_PACKAGE"
 
       - name: Generate plan markdown
         shell: bash
         run: |
           set -euo pipefail
 
-          if [[ -z "${OPENAI_API_KEY:-}" ]]; then
-            echo "OPENAI_API_KEY secret is not set."
-            exit 1
-          fi
-          # Normalize key to avoid hidden CR/LF or extra spaces from secret copy/paste.
-          OPENAI_API_KEY="$(printf '%s' "$OPENAI_API_KEY" | tr -d '\r\n' | xargs)"
-          export OPENAI_API_KEY
-          if [[ -z "$OPENAI_API_KEY" ]]; then
-            echo "OPENAI_API_KEY is empty after normalization."
-            exit 1
-          fi
-          if [[ "${OPENAI_API_KEY}" != sk-* ]]; then
-            echo "OPENAI_API_KEY format looks invalid (must start with 'sk-')."
-            exit 1
-          fi
-
           mkdir -p plans
           PLAN_FILE="plans/issue-${ISSUE_NUMBER}.md"
 
-          cat > /tmp/plan_prompt.md <<'PROMPT'
-          あなたはこのリポジトリの実装担当エンジニアです。
-          以下のGitHub Issueを読み、実装計画を日本語Markdownで作成してください。
+          cat > "$PLAN_FILE" <<PLAN
+          # Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
 
-          要件:
-          - 実装コードはまだ書かない
-          - 具体的な作業順序にする
-          - チェックリスト形式でタスク化する
-          - 必ず以下の見出しを含める:
-            1. Goal
-            2. Scope
-            3. Implementation Tasks
-            4. Risks
-            5. Validation
-            6. Rollback
-          - このリポジトリ構造(frontend/backend)を前提にする
-          PROMPT
+          Issue URL: ${ISSUE_URL}
 
-          {
-            echo "# Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}"
-            echo
-            echo "Issue URL: ${ISSUE_URL}"
-            echo
-            echo "## Original Issue"
-            echo
-            printf "%s\n" "${ISSUE_BODY}"
-            echo
-            echo "## Instructions"
-            cat /tmp/plan_prompt.md
-          } > /tmp/full_prompt.md
+          ## Original Issue
+          ${ISSUE_BODY}
 
-          PROMPT_CONTENT="$(cat /tmp/full_prompt.md)"
-          if OPENAI_API_KEY="$OPENAI_API_KEY" codex exec --full-auto --output-last-message "$PLAN_FILE" "$PROMPT_CONTENT" 2>/tmp/codex.err; then
-            echo "Generated with: codex exec --output-last-message"
-          else
-            echo "Codex CLI failed to generate plan"
-            cat /tmp/codex.err || true
-            exit 1
-          fi
+          ## Goal
+          - Issueの内容を満たすための実装方針を明確化する。
+
+          ## Scope
+          - In Scope:
+            - `frontend/` と `backend/` のうち、Issueに関連する変更点の整理
+            - 必要な画面/API/状態管理の修正タスク定義
+          - Out of Scope:
+            - 追加要件の拡張実装
+            - 本Issueに無関係なリファクタ
+
+          ## Implementation Tasks
+          - [ ] Issue本文を要件単位に分解する
+          - [ ] 影響範囲を `frontend/` / `backend/` / API契約に分類する
+          - [ ] 実装手順を依存順で並べる（先に型・データ構造、次にUI/API）
+          - [ ] 完了条件（受け入れ基準）を各タスクに紐付ける
+          - [ ] レビュー観点（回帰リスク、互換性、操作性）を整理する
+
+          ## Risks
+          - Issue本文の情報不足により、実装前に追加確認が必要になる可能性。
+          - UI変更時に既存フロー（開始/記録/履歴）へ回帰が入る可能性。
+          - API変更が入る場合、frontend側との不整合が発生する可能性。
+
+          ## Validation
+          - [ ] 影響機能の手動確認手順を記載する
+          - [ ] 既存の主要フローが維持されることを確認する
+          - [ ] 差分レビューで Scope外変更がないことを確認する
+
+          ## Rollback
+          - 問題発生時はこのIssue向け変更コミットのみをrevertする。
+          - API契約変更がある場合は、frontend/backendを同時に元に戻す。
+          PLAN
 
           if [[ ! -s "$PLAN_FILE" ]]; then
             echo "Generated plan file is empty"

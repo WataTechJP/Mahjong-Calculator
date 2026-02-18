@@ -28,4 +28,9 @@ npm-debug.log*
 frontend/ios/
 frontend/android/
 
+# Claude
+.claude/
+Claude.md
 
+# Github
+.github/

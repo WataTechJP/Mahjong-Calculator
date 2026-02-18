@@ -2,7 +2,7 @@ name: Claude Auto-Implement Issue
 
 on:
   issues:
-    types: [opened]
+    types: [labeled]
 
 # 同じ Issue への並列実行を防ぐ（cancel ではなく queue）
 concurrency:
@@ -18,12 +18,11 @@ jobs:
   auto-implement:
     runs-on: ubuntu-latest
 
-    # wontfix / question / duplicate / invalid ラベルはスキップ
+    # "ai-run" ラベル付与時のみ実行（repo owner 操作に限定）
     if: |
-      !contains(github.event.issue.labels.*.name, 'wontfix') &&
-      !contains(github.event.issue.labels.*.name, 'question') &&
-      !contains(github.event.issue.labels.*.name, 'duplicate') &&
-      !contains(github.event.issue.labels.*.name, 'invalid')
+      github.event.label.name == 'ai-run' &&
+      github.event.sender.type == 'User' &&
+      github.event.sender.login == github.repository_owner
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

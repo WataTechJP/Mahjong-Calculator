@@ -36,10 +36,7 @@ export function FinalResultScreen({ onStartNewGame }: Props) {
   const { players, endReason, startedAt, endedAt, resetGame } = useGameStore();
   const viewShotRef = useRef<ViewShot | null>(null);
 
-  const ranking = useMemo(
-    () => [...players].sort((a, b) => b.score - a.score),
-    [players]
-  );
+  const ranking = useMemo(() => [...players].sort((a, b) => b.score - a.score), [players]);
 
   const handleCapture = async () => {
     try {
@@ -69,7 +66,11 @@ export function FinalResultScreen({ onStartNewGame }: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }} style={styles.captureArea}>
+      <ViewShot
+        ref={viewShotRef}
+        options={{ format: 'png', quality: 1 }}
+        style={styles.captureArea}
+      >
         <Text style={styles.title}>最終結果</Text>
         <Text style={styles.subTitle}>{endReason || '対局終了'}</Text>
 

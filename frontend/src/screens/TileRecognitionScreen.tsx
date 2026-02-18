@@ -14,7 +14,7 @@ import { TileButton, EmptyTileSlot } from '../components/TileButton';
 import { TilePickerModal } from '../components/TilePickerModal';
 import { recognizeTiles, calculateScore } from '../api/client';
 import { useGameStore } from '../store/gameStore';
-import type { TileId, RecognizedTile, Wind, TileInput, ScoreResult, MeldType, MeldFrom } from '../types/mahjong';
+import type { TileId, Wind, TileInput, ScoreResult, MeldType, MeldFrom } from '../types/mahjong';
 
 interface Props {
   onBack: () => void;
@@ -108,7 +108,7 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
         setImageUri(result.assets[0].uri);
         await recognizeImage(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('エラー', '画像の取得に失敗しました');
     }
   };
@@ -152,7 +152,7 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
           `${lowConfidence.length}枚の牌が認識に自信がありません。赤枠の牌をタップして修正してください。`
         );
       }
-    } catch (error) {
+    } catch {
       Alert.alert('エラー', '画像認識に失敗しました');
     } finally {
       setIsLoading(false);
@@ -160,7 +160,11 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
   };
 
   // 牌編集モーダルを開く
-  const openPicker = (type: 'hand' | 'win' | 'dora' | 'meld', index: number, meldIndex?: number) => {
+  const openPicker = (
+    type: 'hand' | 'win' | 'dora' | 'meld',
+    index: number,
+    meldIndex?: number
+  ) => {
     setEditingType(type);
     setEditingIndex(index);
     if (meldIndex !== undefined) {
@@ -181,7 +185,11 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
       return undefined;
     };
 
-    if (tileId !== '' && mode === 'manual' && (editingType === 'hand' || editingType === 'win' || editingType === 'meld')) {
+    if (
+      tileId !== '' &&
+      mode === 'manual' &&
+      (editingType === 'hand' || editingType === 'win' || editingType === 'meld')
+    ) {
       const currentEditingTileId = getCurrentEditingTileId();
       const allSelected = [
         ...handTiles.map((t) => t.id),
@@ -297,7 +305,7 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
         return {
           ...m,
           type,
-          from: type === 'ankan' ? undefined : (m.from || 'kamicha'),
+          from: type === 'ankan' ? undefined : m.from || 'kamicha',
           tiles,
         };
       })
@@ -354,9 +362,12 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
       return;
     }
 
-    const hasUnknownTile =
-      [...handTiles, winTile, ...doraTiles, ...melds.flatMap((m) => m.tiles)]
-        .some((tile) => tile.id === '?' || !VALID_TILE_ID.test(tile.id));
+    const hasUnknownTile = [
+      ...handTiles,
+      winTile,
+      ...doraTiles,
+      ...melds.flatMap((m) => m.tiles),
+    ].some((tile) => tile.id === '?' || !VALID_TILE_ID.test(tile.id));
     if (hasUnknownTile) {
       Alert.alert('エラー', '不明な牌があります。? の牌を修正してから計算してください。');
       return;
@@ -434,7 +445,7 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
       }
 
       setResult(calcResult);
-    } catch (error) {
+    } catch {
       Alert.alert('エラー', '点数計算に失敗しました');
     }
   };
@@ -453,7 +464,7 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
           melds: melds.map((m) => ({ type: m.type, from: m.from, opened: m.type !== 'ankan' })),
         });
       }
-    } catch (error) {
+    } catch {
       Alert.alert('エラー', '点数適用に失敗しました。サーバー接続を確認してください。');
       return;
     }
@@ -469,10 +480,18 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
       {/* 画像取得ボタン */}
       {mode === 'image' && (
         <View style={styles.imageButtons}>
-          <TouchableOpacity style={styles.imageButton} onPress={() => pickImage(true)} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.imageButton}
+            onPress={() => pickImage(true)}
+            activeOpacity={0.7}
+          >
             <Text style={styles.imageButtonText}>撮影</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.imageButton} onPress={() => pickImage(false)} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.imageButton}
+            onPress={() => pickImage(false)}
+            activeOpacity={0.7}
+          >
             <Text style={styles.imageButtonText}>ギャラリー</Text>
           </TouchableOpacity>
         </View>
@@ -537,11 +556,22 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
                 {(['chi', 'pon', 'kan', 'ankan'] as MeldType[]).map((type) => (
                   <TouchableOpacity
                     key={type}
-                    style={[styles.meldTypeButton, meld.type === type && styles.meldTypeButtonActive]}
+                    style={[
+                      styles.meldTypeButton,
+                      meld.type === type && styles.meldTypeButtonActive,
+                    ]}
                     onPress={() => updateMeldType(meldIndex, type)}
                   >
-                    <Text style={[styles.meldTypeText, meld.type === type && styles.meldTypeTextActive]}>
-                      {type === 'chi' ? 'チー' : type === 'pon' ? 'ポン' : type === 'kan' ? '明槓' : '暗槓'}
+                    <Text
+                      style={[styles.meldTypeText, meld.type === type && styles.meldTypeTextActive]}
+                    >
+                      {type === 'chi'
+                        ? 'チー'
+                        : type === 'pon'
+                          ? 'ポン'
+                          : type === 'kan'
+                            ? '明槓'
+                            : '暗槓'}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -552,14 +582,22 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
                   {(['kamicha', 'toimen', 'shimocha'] as MeldFrom[]).map((from) => (
                     <TouchableOpacity
                       key={from}
-                      style={[styles.meldFromButton, meld.from === from && styles.meldFromButtonActive]}
+                      style={[
+                        styles.meldFromButton,
+                        meld.from === from && styles.meldFromButtonActive,
+                      ]}
                       onPress={() =>
                         setMelds((prev) =>
                           prev.map((m, i) => (i === meldIndex ? { ...m, from } : m))
                         )
                       }
                     >
-                      <Text style={[styles.meldFromText, meld.from === from && styles.meldFromTextActive]}>
+                      <Text
+                        style={[
+                          styles.meldFromText,
+                          meld.from === from && styles.meldFromTextActive,
+                        ]}
+                      >
                         {MELD_FROM_LABELS[from]}
                       </Text>
                     </TouchableOpacity>
@@ -728,7 +766,11 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
       </View>
 
       {/* 計算ボタン */}
-      <TouchableOpacity style={styles.calculateButton} onPress={handleCalculate} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.calculateButton}
+        onPress={handleCalculate}
+        activeOpacity={0.7}
+      >
         <Text style={styles.calculateButtonText}>計算する</Text>
       </TouchableOpacity>
 
@@ -753,7 +795,11 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
               ))}
             </View>
           )}
-          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.confirmButton}
+            onPress={handleConfirm}
+            activeOpacity={0.7}
+          >
             <Text style={styles.confirmButtonText}>確定して適用</Text>
           </TouchableOpacity>
         </View>
@@ -774,10 +820,10 @@ export function TileRecognitionScreen({ onBack, mode = 'image' }: Props) {
           editingType === 'hand'
             ? handTiles[editingIndex || 0]?.id
             : editingType === 'win'
-            ? winTile?.id
-            : editingType === 'dora'
-            ? doraTiles[editingIndex || 0]?.id
-            : melds[editingMeldIndex]?.tiles[editingIndex || 0]?.id
+              ? winTile?.id
+              : editingType === 'dora'
+                ? doraTiles[editingIndex || 0]?.id
+                : melds[editingMeldIndex]?.tiles[editingIndex || 0]?.id
         }
         title="牌を選択"
       />

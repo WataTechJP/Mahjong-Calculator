@@ -27,7 +27,10 @@ interface GameStore {
   endedAt: number | null;
 
   // アクション
-  startGame: (playerNames: string[], options?: { gameMode?: GameMode; enable30000Rule?: boolean }) => void;
+  startGame: (
+    playerNames: string[],
+    options?: { gameMode?: GameMode; enable30000Rule?: boolean }
+  ) => void;
   resetGame: () => void;
 
   // 和了処理
@@ -146,7 +149,7 @@ export const useGameStore = create<GameStore>()(
             scoreResult,
             scoreDiffs,
           },
-          scoresAfter: newPlayers.map(p => p.score),
+          scoresAfter: newPlayers.map((p) => p.score),
         };
 
         set({
@@ -183,7 +186,7 @@ export const useGameStore = create<GameStore>()(
             scoreResult,
             scoreDiffs,
           },
-          scoresAfter: newPlayers.map(p => p.score),
+          scoresAfter: newPlayers.map((p) => p.score),
         };
 
         set({
@@ -224,7 +227,7 @@ export const useGameStore = create<GameStore>()(
             type: 'draw',
             scoreDiffs,
           },
-          scoresAfter: newPlayers.map(p => p.score),
+          scoresAfter: newPlayers.map((p) => p.score),
         };
 
         set({
@@ -349,7 +352,7 @@ export const useGameStore = create<GameStore>()(
             riichiPlayerIndex: playerIndex,
             scoreDiffs,
           },
-          scoresAfter: newPlayers.map(p => p.score),
+          scoresAfter: newPlayers.map((p) => p.score),
         };
 
         set({
@@ -369,9 +372,10 @@ export const useGameStore = create<GameStore>()(
         const newHistory = history.slice(0, -1);
 
         // 前の状態を復元
-        const previousScores = newHistory.length > 0
-          ? newHistory[newHistory.length - 1].scoresAfter
-          : players.map(() => INITIAL_SCORE);
+        const previousScores =
+          newHistory.length > 0
+            ? newHistory[newHistory.length - 1].scoresAfter
+            : players.map(() => INITIAL_SCORE);
 
         const newPlayers = players.map((p, i) => ({
           ...p,

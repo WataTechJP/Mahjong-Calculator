@@ -1,13 +1,6 @@
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
-import { TileButton, TILE_DISPLAY } from './TileButton';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { TileButton } from './TileButton';
 import type { TileId } from '../types/mahjong';
 
 type TileCategory = 'man' | 'pin' | 'sou' | 'honor';
@@ -58,12 +51,7 @@ export function TilePickerModal({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.container}>
           <View style={styles.header}>
@@ -78,17 +66,11 @@ export function TilePickerModal({
             {(Object.keys(TILE_CATEGORIES) as TileCategory[]).map((category) => (
               <TouchableOpacity
                 key={category}
-                style={[
-                  styles.tab,
-                  selectedCategory === category && styles.tabActive,
-                ]}
+                style={[styles.tab, selectedCategory === category && styles.tabActive]}
                 onPress={() => setSelectedCategory(category)}
               >
                 <Text
-                  style={[
-                    styles.tabText,
-                    selectedCategory === category && styles.tabTextActive,
-                  ]}
+                  style={[styles.tabText, selectedCategory === category && styles.tabTextActive]}
                 >
                   {TILE_CATEGORIES[category].label}
                 </Text>

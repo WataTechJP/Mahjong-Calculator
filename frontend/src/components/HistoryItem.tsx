@@ -62,7 +62,8 @@ export function HistoryItem({ item, index, players }: Props) {
     const melds = item.result.melds;
     if (!melds || melds.length === 0) return null;
     const parts = melds.map((m) => {
-      const typeLabel = m.type === 'chi' ? 'チー' : m.type === 'pon' ? 'ポン' : m.type === 'kan' ? '明槓' : '暗槓';
+      const typeLabel =
+        m.type === 'chi' ? 'チー' : m.type === 'pon' ? 'ポン' : m.type === 'kan' ? '明槓' : '暗槓';
       if (m.type === 'ankan') return typeLabel;
       const fromLabel = m.from === 'kamicha' ? '上家' : m.from === 'toimen' ? '対面' : '下家';
       return `${typeLabel}(${fromLabel})`;
@@ -100,7 +101,13 @@ export function HistoryItem({ item, index, players }: Props) {
         {item.result.scoreDiffs.map((diff, i) => (
           <View key={i} style={styles.diffItem}>
             <Text style={styles.diffWind}>{WIND_LABELS[players[i]?.wind || 'east']}</Text>
-            <Text style={[styles.diffValue, diff > 0 && styles.diffPositive, diff < 0 && styles.diffNegative]}>
+            <Text
+              style={[
+                styles.diffValue,
+                diff > 0 && styles.diffPositive,
+                diff < 0 && styles.diffNegative,
+              ]}
+            >
               {diff > 0 ? '+' : ''}
               {diff.toLocaleString()}
             </Text>

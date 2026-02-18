@@ -1,14 +1,23 @@
 import type { CalculateRequest, ScoreResult, RecognitionResult } from '../types/mahjong';
 
-// 開発環境では localhost、実機では適切なIPに変更
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const API_AUTH_TOKEN = process.env.EXPO_PUBLIC_API_AUTH_TOKEN;
+
+function getHeaders(contentType: 'json' | 'none' = 'json'): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (contentType === 'json') {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (API_AUTH_TOKEN) {
+    headers['x-api-key'] = API_AUTH_TOKEN;
+  }
+  return headers;
+}
 
 export async function calculateScore(request: CalculateRequest): Promise<ScoreResult> {
   const response = await fetch(`${API_BASE_URL}/calculate`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getHeaders('json'),
     body: JSON.stringify(request),
   });
 
@@ -29,6 +38,7 @@ export async function recognizeTiles(imageUri: string): Promise<RecognitionResul
 
   const response = await fetch(`${API_BASE_URL}/recognize`, {
     method: 'POST',
+    headers: getHeaders('none'),
     body: formData,
   });
 
@@ -43,6 +53,7 @@ export async function applyScoreToPlayers(params: {
   scores: number[];
   winnerIndex: number;
   loserIndex?: number;
+  dealerIndex: number;
   cost: { main: number; additional: number };
   isTsumo: boolean;
   honba: number;
@@ -53,13 +64,12 @@ export async function applyScoreToPlayers(params: {
 }> {
   const response = await fetch(`${API_BASE_URL}/apply-score`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getHeaders('json'),
     body: JSON.stringify({
       scores: params.scores,
       winner_index: params.winnerIndex,
       loser_index: params.loserIndex,
+      dealer_index: params.dealerIndex,
       cost: params.cost,
       is_tsumo: params.isTsumo,
       honba: params.honba,

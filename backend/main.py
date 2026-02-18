@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from mahjong.hand_calculating.hand import HandCalculator
 from mahjong.hand_calculating.hand_config import HandConfig, OptionalRules
@@ -14,6 +14,7 @@ import time
 import secrets
 from collections import defaultdict, deque
 from openai import OpenAI
+from score_engine import apply_score_to_scores
 
 app = FastAPI(title="Mahjong Calculator API")
 
@@ -65,6 +66,7 @@ class MeldInput(BaseModel):
     type: str  # "chi", "pon", "kan", "ankan"
     tiles: TileInput
     opened: bool = True
+    from_player: Optional[str] = Field(default=None, alias="from")
 
 
 class CalculateRequest(BaseModel):
@@ -100,6 +102,7 @@ class ApplyScoreRequest(BaseModel):
     scores: list[int]  # 4人の現在点 [東, 南, 西, 北]
     winner_index: int  # 和了者のインデックス (0-3)
     loser_index: Optional[int] = None  # 放銃者 (ロンの場合)
+    dealer_index: int = 0  # 親のインデックス (0-3)
     cost: dict  # 点数 (main, additional など)
     is_tsumo: bool
     honba: int = 0  # 本場
@@ -253,36 +256,19 @@ async def calculate_score(request: CalculateRequest, x_api_key: Optional[str] = 
 async def apply_score(request: ApplyScoreRequest, x_api_key: Optional[str] = Header(default=None)):
     """点数を4人の持ち点に反映"""
     verify_api_auth(x_api_key)
-    scores = request.scores.copy()
-    honba_bonus = request.honba * 300  # 本場ボーナス
-
-    if request.is_tsumo:
-        # ツモの場合
-        main_cost = request.cost.get("main", 0)
-        additional_cost = request.cost.get("additional", 0)
-
-        for i in range(4):
-            if i == request.winner_index:
-                # 和了者は全員から受け取る + 供託
-                total_receive = main_cost + additional_cost * 2 + honba_bonus + request.riichi_sticks * 1000
-                scores[i] += total_receive
-            else:
-                # 親は main、子は additional を支払う
-                if i == 0:  # 親
-                    scores[i] -= main_cost + honba_bonus // 3
-                else:
-                    scores[i] -= additional_cost + honba_bonus // 3
-    else:
-        # ロンの場合
-        main_cost = request.cost.get("main", 0)
-        scores[request.winner_index] += main_cost + honba_bonus + request.riichi_sticks * 1000
-        if request.loser_index is not None:
-            scores[request.loser_index] -= main_cost + honba_bonus
-
-    return {
-        "scores": scores,
-        "diff": [scores[i] - request.scores[i] for i in range(4)]
-    }
+    try:
+        return apply_score_to_scores(
+            scores=request.scores,
+            winner_index=request.winner_index,
+            loser_index=request.loser_index,
+            dealer_index=request.dealer_index,
+            cost=request.cost,
+            is_tsumo=request.is_tsumo,
+            honba=request.honba,
+            riichi_sticks=request.riichi_sticks,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 class RecognizedTile(BaseModel):

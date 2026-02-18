@@ -48,14 +48,40 @@ export const TILE_DISPLAY: Record<string, { name: string; color: string }> = {
 
 // 簡易表示用 (数字 + スート記号)
 export const TILE_SHORT: Record<string, string> = {
-  '1m': '1萬', '2m': '2萬', '3m': '3萬', '4m': '4萬', '5m': '5萬',
-  '6m': '6萬', '7m': '7萬', '8m': '8萬', '9m': '9萬',
-  '1p': '1筒', '2p': '2筒', '3p': '3筒', '4p': '4筒', '5p': '5筒',
-  '6p': '6筒', '7p': '7筒', '8p': '8筒', '9p': '9筒',
-  '1s': '1索', '2s': '2索', '3s': '3索', '4s': '4索', '5s': '5索',
-  '6s': '6索', '7s': '7索', '8s': '8索', '9s': '9索',
-  '1z': '東', '2z': '南', '3z': '西', '4z': '北',
-  '5z': '白', '6z': '發', '7z': '中',
+  '1m': '1萬',
+  '2m': '2萬',
+  '3m': '3萬',
+  '4m': '4萬',
+  '5m': '5萬',
+  '6m': '6萬',
+  '7m': '7萬',
+  '8m': '8萬',
+  '9m': '9萬',
+  '1p': '1筒',
+  '2p': '2筒',
+  '3p': '3筒',
+  '4p': '4筒',
+  '5p': '5筒',
+  '6p': '6筒',
+  '7p': '7筒',
+  '8p': '8筒',
+  '9p': '9筒',
+  '1s': '1索',
+  '2s': '2索',
+  '3s': '3索',
+  '4s': '4索',
+  '5s': '5索',
+  '6s': '6索',
+  '7s': '7索',
+  '8s': '8索',
+  '9s': '9索',
+  '1z': '東',
+  '2z': '南',
+  '3z': '西',
+  '4z': '北',
+  '5z': '白',
+  '6z': '發',
+  '7z': '中',
   '?': '?',
 };
 
@@ -123,12 +149,7 @@ export function TileButton({
         disabled={!onPress}
         activeOpacity={0.7}
       >
-        <Text
-          style={[
-            styles.tileText,
-            { fontSize: currentSize.fontSize, color: tileInfo.color },
-          ]}
-        >
+        <Text style={[styles.tileText, { fontSize: currentSize.fontSize, color: tileInfo.color }]}>
           {TILE_SHORT[tileId] || tileId}
         </Text>
         {displayWarning && (

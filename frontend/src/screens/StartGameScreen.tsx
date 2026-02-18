@@ -9,6 +9,7 @@ import {
   Animated,
 } from 'react-native';
 import { useGameStore } from '../store/gameStore';
+import type { GameMode } from '../types/mahjong';
 
 interface Props {
   onBack: () => void;
@@ -16,7 +17,8 @@ interface Props {
 
 export function StartGameScreen({ onBack }: Props) {
   const [names, setNames] = useState(['', '', '', '']);
-  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const [gameMode, setGameMode] = useState<GameMode>('hanchan');
+  const [enable30000Rule] = useState(false);
   const { startGame } = useGameStore();
   const borderAnimations = useRef(names.map(() => new Animated.Value(0))).current;
 
@@ -27,7 +29,6 @@ export function StartGameScreen({ onBack }: Props) {
   };
 
   const handleFocus = (index: number) => {
-    setFocusedIndex(index);
     Animated.timing(borderAnimations[index], {
       toValue: 1,
       duration: 200,
@@ -36,7 +37,6 @@ export function StartGameScreen({ onBack }: Props) {
   };
 
   const handleBlur = (index: number) => {
-    setFocusedIndex(null);
     Animated.timing(borderAnimations[index], {
       toValue: 0,
       duration: 200,
@@ -45,7 +45,7 @@ export function StartGameScreen({ onBack }: Props) {
   };
 
   const handleStart = () => {
-    startGame(names);
+    startGame(names, { gameMode, enable30000Rule });
     onBack();
   };
 
@@ -78,6 +78,48 @@ export function StartGameScreen({ onBack }: Props) {
           </View>
         );
       })}
+
+      <View style={styles.ruleSection}>
+        <Text style={styles.ruleTitle}>対局モード</Text>
+        <View style={styles.modeRow}>
+          <TouchableOpacity
+            style={[styles.modeButton, gameMode === 'tonpu' && styles.modeButtonActive]}
+            onPress={() => setGameMode('tonpu')}
+          >
+            <Text style={[styles.modeText, gameMode === 'tonpu' && styles.modeTextActive]}>
+              東風戦
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeButton, gameMode === 'hanchan' && styles.modeButtonActive]}
+            onPress={() => setGameMode('hanchan')}
+          >
+            <Text style={[styles.modeText, gameMode === 'hanchan' && styles.modeTextActive]}>
+              半荘
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* <TouchableOpacity
+          style={[
+            styles.ruleToggle,
+            enable30000Rule && styles.ruleToggleActive,
+          ]}
+          onPress={() => setEnable30000Rule((prev) => !prev)}
+        >
+          <Text
+            style={[
+              styles.ruleToggleText,
+              enable30000Rule && styles.ruleToggleTextActive,
+            ]}
+          >
+            30000点終了条件
+          </Text>
+          <Text style={styles.ruleSubText}>
+            東4終了時トップ30000点未満なら南場へ
+          </Text>
+        </TouchableOpacity> */}
+      </View>
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.startButton} onPress={handleStart} activeOpacity={0.7}>
@@ -132,6 +174,57 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: 30,
     gap: 12,
+  },
+  ruleSection: {
+    marginTop: 20,
+    gap: 10,
+  },
+  ruleTitle: {
+    fontSize: 16,
+    color: '#aaa',
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modeButton: {
+    flex: 1,
+    backgroundColor: '#2d2d44',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modeButtonActive: {
+    backgroundColor: '#3498db',
+  },
+  modeText: {
+    color: '#aaa',
+    fontSize: 16,
+  },
+  modeTextActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  ruleToggle: {
+    backgroundColor: '#2d2d44',
+    borderRadius: 8,
+    padding: 12,
+    gap: 4,
+  },
+  ruleToggleActive: {
+    backgroundColor: '#8e44ad',
+  },
+  ruleToggleText: {
+    color: '#aaa',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  ruleToggleTextActive: {
+    color: '#fff',
+  },
+  ruleSubText: {
+    color: '#ccc',
+    fontSize: 12,
   },
   startButton: {
     backgroundColor: '#4CAF50',

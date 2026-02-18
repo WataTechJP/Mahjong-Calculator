@@ -17,7 +17,7 @@ Mahjong Calculator/
 │   ├── main.py                  # APIサーバー
 │   ├── score_engine.py          # 点数配分ロジック
 │   ├── tests/                   # pytest
-│   └── requirements.txt
+│   └── pyproject.toml
 └── .gitignore
 ```
 
@@ -27,10 +27,7 @@ Mahjong Calculator/
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python main.py
+uv run python main.py
 ```
 
 - 起動後: `http://localhost:8000`
@@ -90,10 +87,7 @@ npm run precommit:check
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-PYTHONPATH=. pytest -q
+uv run pytest
 ```
 
 ### GitHub Actions（main マージ後）

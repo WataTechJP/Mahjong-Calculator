@@ -1,11 +1,17 @@
 # Dependencies
 frontend/node_modules/
 backend/venv/
+backend/.venv/
+venv/
+.venv/
 backend/__pycache__/
+__pycache__/
+*.py[cod]
 
 # Expo
 frontend/.expo/
 frontend/dist/
+frontend/coverage/
 
 # IDE
 .vscode/
@@ -30,7 +36,7 @@ frontend/android/
 
 # Claude
 .claude/
-Claude.md
 
-# Github
-.github/
+# Python test/cache artifacts
+.pytest_cache/
+.coverage

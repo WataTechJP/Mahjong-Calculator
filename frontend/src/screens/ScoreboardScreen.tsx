@@ -1,5 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Alert, AlertButton } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Animated,
+  Alert,
+  AlertButton,
+} from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import type { Wind } from '../types/mahjong';
 
@@ -18,7 +27,13 @@ interface Props {
   onManualInput: () => void;
 }
 
-export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory, onRecognition, onManualInput }: Props) {
+export function ScoreboardScreen({
+  onStartGame,
+  onRecordWin,
+  onShowHistory,
+  onRecognition,
+  onManualInput,
+}: Props) {
   const {
     players,
     round,
@@ -119,9 +134,7 @@ export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory, onRe
           <Text style={styles.detailText}>本場: {round.honba}</Text>
           <Text style={styles.detailText}>供託: {round.riichiSticks}</Text>
         </View>
-        {isGameEnded && (
-          <Text style={styles.endLabel}>終局: {endReason || '対局終了'}</Text>
-        )}
+        {isGameEnded && <Text style={styles.endLabel}>終局: {endReason || '対局終了'}</Text>}
       </View>
 
       {/* スコアボード */}
@@ -136,21 +149,17 @@ export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory, onRe
                 opacity: fadeAnims[index],
                 transform: [
                   { translateY: slideAnims[index] },
-                  index === round.dealerIndex ? { scale: dealerPulse } : { scale: 1 }
+                  index === round.dealerIndex ? { scale: dealerPulse } : { scale: 1 },
                 ],
               },
             ]}
           >
             <View style={styles.playerHeader}>
               <Text style={styles.windLabel}>{WIND_LABELS[player.wind]}</Text>
-              {index === round.dealerIndex && (
-                <Text style={styles.dealerLabel}>親</Text>
-              )}
+              {index === round.dealerIndex && <Text style={styles.dealerLabel}>親</Text>}
             </View>
             <Text style={styles.playerName}>{player.name}</Text>
-            <Text style={styles.playerScore}>
-              {player.score.toLocaleString()}
-            </Text>
+            <Text style={styles.playerScore}>{player.score.toLocaleString()}</Text>
           </Animated.View>
         ))}
       </View>
@@ -197,7 +206,11 @@ export function ScoreboardScreen({ onStartGame, onRecordWin, onShowHistory, onRe
             <Text style={styles.secondaryButtonText}>取り消し</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryButton} onPress={onShowHistory} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={onShowHistory}
+            activeOpacity={0.7}
+          >
             <Text style={styles.secondaryButtonText}>履歴</Text>
           </TouchableOpacity>
         </View>

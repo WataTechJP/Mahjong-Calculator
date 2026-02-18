@@ -21,7 +21,9 @@ export function HistoryScreen({ onBack }: Props) {
       ) : (
         <FlatList
           data={[...history].reverse()}
-          renderItem={({ item, index }) => <HistoryItem item={item} index={index} players={players} />}
+          renderItem={({ item, index }) => (
+            <HistoryItem item={item} index={index} players={players} />
+          )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
         />

@@ -9,8 +9,8 @@ import {
   Animated,
 } from 'react-native';
 import { useGameStore } from '../store/gameStore';
-import { calculateScore } from '../api/client';
-import type { Wind, TileInput, ScoreResult } from '../types/mahjong';
+import type { Wind, ScoreResult } from '../types/mahjong';
+import { calculateScoreCost } from '../utils/scoreCalculator';
 
 interface Props {
   onBack: () => void;
@@ -21,41 +21,6 @@ const WIND_LABELS: Record<Wind, string> = {
   south: '南',
   west: '西',
   north: '北',
-};
-
-// シンプルな点数直接入力モード用
-const SCORE_PRESETS = {
-  ron: {
-    1: { 30: 1000, 40: 1300, 50: 1600 },
-    2: { 25: 1600, 30: 2000, 40: 2600, 50: 3200 },
-    3: { 25: 3200, 30: 3900, 40: 5200, 50: 6400 },
-    4: { 25: 6400, 30: 7700, 40: 8000 },
-    5: { 0: 8000 },
-    6: { 0: 12000 },
-    7: { 0: 12000 },
-    8: { 0: 16000 },
-    9: { 0: 16000 },
-    10: { 0: 16000 },
-    11: { 0: 24000 },
-    12: { 0: 24000 },
-    13: { 0: 32000 },
-  } as Record<number, Record<number, number>>,
-  tsumo: {
-    // [親払い, 子払い]
-    1: { 30: [500, 300], 40: [700, 400], 50: [800, 400] },
-    2: { 25: [800, 400], 30: [1000, 500], 40: [1300, 700], 50: [1600, 800] },
-    3: { 25: [1600, 800], 30: [2000, 1000], 40: [2600, 1300], 50: [3200, 1600] },
-    4: { 25: [3200, 1600], 30: [3900, 2000], 40: [4000, 2000] },
-    5: { 0: [4000, 2000] },
-    6: { 0: [6000, 3000] },
-    7: { 0: [6000, 3000] },
-    8: { 0: [8000, 4000] },
-    9: { 0: [8000, 4000] },
-    10: { 0: [8000, 4000] },
-    11: { 0: [12000, 6000] },
-    12: { 0: [12000, 6000] },
-    13: { 0: [16000, 8000] },
-  } as Record<number, Record<number, [number, number]>>,
 };
 
 export function RecordWinScreen({ onBack }: Props) {
@@ -103,33 +68,6 @@ export function RecordWinScreen({ onBack }: Props) {
     ]).start();
   }, [han, fu, winnerIndex, isTsumo]);
 
-  const getScore = (): { main: number; additional: number } | null => {
-    const scoreTable = isTsumo ? SCORE_PRESETS.tsumo : SCORE_PRESETS.ron;
-    const hanScores = scoreTable[han];
-    if (!hanScores) return null;
-
-    // 満貫以上は符関係なし
-    const effectiveFu = han >= 5 ? 0 : fu;
-    const score = hanScores[effectiveFu];
-    if (!score) return null;
-
-    if (isTsumo) {
-      const [dealerPay, nonDealerPay] = score as [number, number];
-      if (isWinnerDealer) {
-        // 親のツモ
-        return { main: dealerPay, additional: dealerPay };
-      } else {
-        // 子のツモ
-        return { main: dealerPay, additional: nonDealerPay };
-      }
-    } else {
-      const ronScore = score as number;
-      // 親は1.5倍
-      const finalScore = isWinnerDealer ? Math.ceil(ronScore * 1.5 / 100) * 100 : ronScore;
-      return { main: finalScore, additional: 0 };
-    }
-  };
-
   const handleConfirm = async () => {
     if (winnerIndex === null) {
       Alert.alert('エラー', '和了者を選択してください');
@@ -140,7 +78,12 @@ export function RecordWinScreen({ onBack }: Props) {
       return;
     }
 
-    const cost = getScore();
+    const cost = calculateScoreCost({
+      isTsumo,
+      han,
+      fu,
+      isWinnerDealer,
+    });
     if (!cost) {
       Alert.alert('エラー', '点数を計算できません');
       return;
@@ -159,7 +102,7 @@ export function RecordWinScreen({ onBack }: Props) {
       } else {
         await applyRon(winnerIndex, loserIndex!, scoreResult);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('エラー', '点数適用に失敗しました。サーバー接続を確認してください。');
       return;
     }
@@ -170,7 +113,12 @@ export function RecordWinScreen({ onBack }: Props) {
     onBack();
   };
 
-  const scoreInfo = getScore();
+  const scoreInfo = calculateScoreCost({
+    isTsumo,
+    han,
+    fu,
+    isWinnerDealer,
+  });
   const displayScore = scoreInfo
     ? isTsumo
       ? isWinnerDealer
@@ -192,18 +140,14 @@ export function RecordWinScreen({ onBack }: Props) {
             onPress={() => setIsTsumo(false)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.toggleText, !isTsumo && styles.toggleTextActive]}>
-              ロン
-            </Text>
+            <Text style={[styles.toggleText, !isTsumo && styles.toggleTextActive]}>ロン</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.toggleButton, isTsumo && styles.toggleActive]}
             onPress={() => setIsTsumo(true)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.toggleText, isTsumo && styles.toggleTextActive]}>
-              ツモ
-            </Text>
+            <Text style={[styles.toggleText, isTsumo && styles.toggleTextActive]}>ツモ</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -215,10 +159,7 @@ export function RecordWinScreen({ onBack }: Props) {
           {players.map((player, index) => (
             <TouchableOpacity
               key={index}
-              style={[
-                styles.playerButton,
-                winnerIndex === index && styles.playerButtonActive,
-              ]}
+              style={[styles.playerButton, winnerIndex === index && styles.playerButtonActive]}
               onPress={() => {
                 setWinnerIndex(index);
                 if (loserIndex === index) setLoserIndex(null);
@@ -265,9 +206,7 @@ export function RecordWinScreen({ onBack }: Props) {
               style={[styles.hanButton, han === h && styles.hanButtonActive]}
               onPress={() => setHan(h)}
             >
-              <Text style={[styles.hanText, han === h && styles.hanTextActive]}>
-                {h}
-              </Text>
+              <Text style={[styles.hanText, han === h && styles.hanTextActive]}>{h}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -283,9 +222,7 @@ export function RecordWinScreen({ onBack }: Props) {
                 style={[styles.fuButton, fu === f && styles.fuButtonActive]}
                 onPress={() => setFu(f)}
               >
-                <Text style={[styles.fuText, fu === f && styles.fuTextActive]}>
-                  {f}
-                </Text>
+                <Text style={[styles.fuText, fu === f && styles.fuTextActive]}>{f}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -298,9 +235,7 @@ export function RecordWinScreen({ onBack }: Props) {
           style={[styles.riichiButton, isRiichi && styles.riichiButtonActive]}
           onPress={() => setIsRiichi(!isRiichi)}
         >
-          <Text style={[styles.riichiText, isRiichi && styles.riichiTextActive]}>
-            リーチ
-          </Text>
+          <Text style={[styles.riichiText, isRiichi && styles.riichiTextActive]}>リーチ</Text>
         </TouchableOpacity>
       </View>
 
@@ -318,10 +253,15 @@ export function RecordWinScreen({ onBack }: Props) {
         <Text style={styles.previewScore}>{displayScore}</Text>
         {han >= 5 && (
           <Text style={styles.previewYakuman}>
-            {han === 5 ? '満貫' :
-             han <= 7 ? '跳満' :
-             han <= 10 ? '倍満' :
-             han <= 12 ? '三倍満' : '役満'}
+            {han === 5
+              ? '満貫'
+              : han <= 7
+                ? '跳満'
+                : han <= 10
+                  ? '倍満'
+                  : han <= 12
+                    ? '三倍満'
+                    : '役満'}
           </Text>
         )}
       </Animated.View>

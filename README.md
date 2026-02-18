@@ -10,10 +10,13 @@ Mahjong Calculator/
 │   │   ├── types/mahjong.ts     # 型定義
 │   │   ├── store/gameStore.ts   # Zustand状態管理
 │   │   ├── api/client.ts        # APIクライアント
+│   │   ├── utils/               # 計算ロジック（Jest対象）
 │   │   └── screens/             # 画面群
 │   └── package.json
 ├── backend/                     # Python FastAPI
 │   ├── main.py                  # APIサーバー
+│   ├── score_engine.py          # 点数配分ロジック
+│   ├── tests/                   # pytest
 │   └── requirements.txt
 └── .gitignore
 ```
@@ -49,6 +52,56 @@ npm start
 npm run ios
 npm run android
 ```
+
+### 3. commit時の自動チェック（typecheck + lint + format）
+
+```bash
+cd frontend
+npm install
+```
+
+- `npm install` 時に Git hook が自動設定されます（`simple-git-hooks`）。
+- 以後 `git commit` 実行時に以下が自動実行されます:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run format:check`
+- 手動実行コマンド:
+
+```bash
+cd frontend
+npm run precommit:check
+```
+
+## 品質チェック / テスト
+
+### Frontend（TypeScript strict, ESLint, Prettier, Jest）
+
+- TypeScript strict: `frontend/tsconfig.json` で `strict: true`
+- Lint: `npm run lint`（ESLint）
+- Format check: `npm run format:check`（Prettier）
+- Format apply: `npm run format`
+- Jest（計算ロジックのみ）: `npm test`
+  - 対象: `frontend/src/utils/*.test.ts`
+  - 例: `frontend/src/utils/scoreCalculator.test.ts`
+
+### Backend（pytest）
+
+- 実行コマンド:
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+PYTHONPATH=. pytest -q
+```
+
+### GitHub Actions（main マージ後）
+
+- `main` ブランチへの push（マージ完了後）で `Build Check` が実行されます。
+- 内容:
+  - Frontend: `typecheck` + `lint` + `jest`
+  - Backend: `py_compile` + `pytest`
 
 ## 現在実装済みの機能
 

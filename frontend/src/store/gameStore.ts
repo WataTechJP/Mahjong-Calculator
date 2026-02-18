@@ -49,6 +49,7 @@ interface GameStore {
 
   // 局の進行
   advanceRound: (dealerWon: boolean) => void;
+  advanceRoundAfterDraw: (dealerTenpai: boolean) => void;
   addRiichiStick: (playerIndex: number) => boolean;
 
   // Undo
@@ -332,10 +333,110 @@ export const useGameStore = create<GameStore>()(
         set({ round: newRound });
       },
 
+      advanceRoundAfterDraw: (dealerTenpai: boolean) => {
+        const { round, players, gameMode, enable30000Rule } = get();
+        const topScore = Math.max(...players.map((p) => p.score));
+        const dealerScore = players[round.dealerIndex]?.score ?? -Infinity;
+        const isEast4 = round.roundWind === 'east' && round.round >= 4;
+        const isSouth4 = round.roundWind === 'south' && round.round >= 8;
+
+        // トビ終了（誰かがマイナス）
+        if (players.some((p) => p.score < 0)) {
+          set({
+            round: { ...round },
+            isGameEnded: true,
+            endReason: 'トビ終了',
+            endedAt: Date.now(),
+          });
+          return;
+        }
+
+        // 東風戦の東4局判定（流局）
+        if (gameMode === 'tonpu' && isEast4) {
+          if (!dealerTenpai) {
+            if (enable30000Rule && topScore < 30000) {
+              // 30000点未満なら南場へ延長
+            } else {
+              set({
+                round: { ...round },
+                isGameEnded: true,
+                endReason: enable30000Rule ? '東4局流局 30000点終了条件' : '東4局流局終了',
+                endedAt: Date.now(),
+              });
+              return;
+            }
+          } else if (enable30000Rule && dealerScore >= 30000 && dealerScore >= topScore) {
+            set({
+              round: { ...round },
+              isGameEnded: true,
+              endReason: '東4局 親テンパイやめ',
+              endedAt: Date.now(),
+            });
+            return;
+          }
+        }
+
+        // 半荘の南4局判定（流局）
+        if (gameMode === 'hanchan' && isSouth4) {
+          if (!dealerTenpai) {
+            set({
+              round: { ...round },
+              isGameEnded: true,
+              endReason: '南4局流局終了',
+              endedAt: Date.now(),
+            });
+            return;
+          }
+
+          if (dealerScore >= topScore) {
+            set({
+              round: { ...round },
+              isGameEnded: true,
+              endReason: '南4局 親テンパイやめ',
+              endedAt: Date.now(),
+            });
+            return;
+          }
+        }
+
+        const newRound = { ...round, honba: round.honba + 1 };
+
+        if (!dealerTenpai) {
+          // 親流れ（流局）
+          newRound.dealerIndex = (newRound.dealerIndex + 1) % 4;
+          newRound.round += 1;
+
+          if (newRound.round > 4 && newRound.roundWind === 'east') {
+            newRound.roundWind = 'south';
+          }
+
+          // 風の更新
+          const newPlayers = players.map((p, i) => ({
+            ...p,
+            wind: getWindForSeat((i - newRound.dealerIndex + 4) % 4),
+          }));
+          set({ players: newPlayers });
+        }
+
+        set({ round: newRound });
+      },
+
       addRiichiStick: (playerIndex: number) => {
         const { players, round, history } = get();
         const newPlayers = [...players];
         const riichiPlayer = newPlayers[playerIndex];
+        const alreadyDeclaredInCurrentHand = history.some(
+          (entry) =>
+            entry.result.type === 'riichi' &&
+            entry.result.riichiPlayerIndex === playerIndex &&
+            entry.round.round === round.round &&
+            entry.round.honba === round.honba &&
+            entry.round.roundWind === round.roundWind &&
+            entry.round.dealerIndex === round.dealerIndex
+        );
+        if (alreadyDeclaredInCurrentHand) {
+          return false;
+        }
         if (!riichiPlayer || riichiPlayer.score < 1000) {
           return false;
         }

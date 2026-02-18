@@ -9,6 +9,8 @@ import {
   Alert,
   AlertButton,
   StatusBar,
+  Modal,
+  Pressable,
   useWindowDimensions,
 } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -48,6 +50,8 @@ export function ScoreboardScreen({
   onManualInput,
 }: Props) {
   const [isFullscreenScoreView, setIsFullscreenScoreView] = useState(false);
+  const [isDrawModalVisible, setIsDrawModalVisible] = useState(false);
+  const [tenpaiSelections, setTenpaiSelections] = useState<boolean[]>([false, false, false, false]);
   const { width, height } = useWindowDimensions();
   const {
     players,
@@ -59,6 +63,8 @@ export function ScoreboardScreen({
     undoLastAction,
     history,
     addRiichiStick,
+    applyDraw,
+    advanceRoundAfterDraw,
   } = useGameStore();
   const fadeAnims = useRef(players.map(() => new Animated.Value(0))).current;
   const slideAnims = useRef(players.map(() => new Animated.Value(30))).current;
@@ -146,13 +152,32 @@ export function ScoreboardScreen({
       onPress: () => {
         const ok = addRiichiStick(index);
         if (!ok) {
-          Alert.alert('リーチ不可', '持ち点が1000点未満のため、リーチできません。');
+          Alert.alert('リーチ不可', 'この局ですでに宣言済み、または持ち点が1000点未満です。');
         }
       },
     }));
 
     buttons.push({ text: 'キャンセル', style: 'cancel' as const });
     Alert.alert('リーチ宣言', '宣言者を選択してください', buttons);
+  };
+
+  const openDrawModal = () => {
+    setTenpaiSelections(players.map(() => false));
+    setIsDrawModalVisible(true);
+  };
+
+  const toggleTenpaiSelection = (playerIndex: number) => {
+    setTenpaiSelections((prev) => prev.map((selected, index) => (index === playerIndex ? !selected : selected)));
+  };
+
+  const handleConfirmDraw = () => {
+    const tenpaiPlayers = tenpaiSelections
+      .map((selected, index) => (selected ? index : -1))
+      .filter((index) => index >= 0);
+
+    applyDraw(tenpaiPlayers);
+    advanceRoundAfterDraw(tenpaiPlayers.includes(round.dealerIndex));
+    setIsDrawModalVisible(false);
   };
 
   if (!isGameStarted) {
@@ -322,6 +347,15 @@ export function ScoreboardScreen({
         </TouchableOpacity>
 
         <TouchableOpacity
+          style={[styles.drawButton, isGameEnded && styles.disabledButton]}
+          onPress={openDrawModal}
+          disabled={isGameEnded}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.drawButtonText}>流局</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.undoPriorityButton, !history.length && styles.disabledButton]}
           onPress={undoLastAction}
           disabled={!history.length}
@@ -343,6 +377,53 @@ export function ScoreboardScreen({
           </TouchableOpacity>
         </View>
       </View>
+
+      <Modal
+        visible={isDrawModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setIsDrawModalVisible(false)}
+      >
+        <View style={styles.drawModalBackdrop}>
+          <View style={styles.drawModalCard}>
+            <Text style={styles.drawModalTitle}>テンパイ者を選択</Text>
+            <Text style={styles.drawModalSubtitle}>流局時のノーテン罰符を反映します</Text>
+            <View style={styles.drawPlayerGrid}>
+              {players.map((player, index) => (
+                <Pressable
+                  key={index}
+                  style={[
+                    styles.drawPlayerChip,
+                    tenpaiSelections[index] && styles.drawPlayerChipActive,
+                    index === round.dealerIndex && styles.drawDealerChip,
+                  ]}
+                  onPress={() => toggleTenpaiSelection(index)}
+                >
+                  <Text style={styles.drawPlayerChipWind}>{WIND_LABELS[player.wind]}</Text>
+                  <Text style={styles.drawPlayerChipName}>{player.name}</Text>
+                  {index === round.dealerIndex && <Text style={styles.drawDealerText}>親</Text>}
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.drawModalActions}>
+              <TouchableOpacity
+                style={styles.drawModalCancelButton}
+                onPress={() => setIsDrawModalVisible(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.drawModalCancelButtonText}>キャンセル</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.drawModalConfirmButton}
+                onPress={handleConfirmDraw}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.drawModalConfirmButtonText}>確定</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -534,6 +615,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  drawButton: {
+    backgroundColor: '#7f8c8d',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  drawButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   fullscreenButton: {
     backgroundColor: '#1f6aa2',
     padding: 14,
@@ -582,6 +674,97 @@ const styles = StyleSheet.create({
   compactDangerButtonText: {
     color: '#ffe8e8',
     fontSize: 13,
+    fontWeight: '700',
+  },
+  drawModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(7, 10, 20, 0.72)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  drawModalCard: {
+    backgroundColor: '#1f2538',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#3a445f',
+  },
+  drawModalTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  drawModalSubtitle: {
+    color: '#a8b3c9',
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  drawPlayerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  drawPlayerChip: {
+    width: '48%',
+    backgroundColor: '#2a324a',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2f3c5f',
+  },
+  drawPlayerChipActive: {
+    backgroundColor: '#2c6d4f',
+    borderColor: '#50b07d',
+  },
+  drawDealerChip: {
+    borderColor: '#d7b24e',
+  },
+  drawPlayerChipWind: {
+    color: '#f7dd8a',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  drawPlayerChipName: {
+    color: '#fff',
+    marginTop: 2,
+    fontSize: 13,
+  },
+  drawDealerText: {
+    color: '#ffe18f',
+    fontSize: 11,
+    marginTop: 3,
+    fontWeight: '700',
+  },
+  drawModalActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  drawModalCancelButton: {
+    flex: 1,
+    backgroundColor: '#4b556f',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  drawModalCancelButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  drawModalConfirmButton: {
+    flex: 1,
+    backgroundColor: '#1f8a5d',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  drawModalConfirmButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '700',
   },
   resetButtonText: {

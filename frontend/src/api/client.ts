@@ -1,7 +1,37 @@
 import type { CalculateRequest, ScoreResult, RecognitionResult } from '../types/mahjong';
+import { NativeModules } from 'react-native';
+import Constants from 'expo-constants';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+function inferApiBaseUrlFromBundleHost(): string | null {
+  const constantHostCandidates: Array<string | undefined> = [
+    (Constants.expoConfig as { hostUri?: string } | null)?.hostUri,
+    (Constants.manifest as { debuggerHost?: string } | null)?.debuggerHost,
+    (Constants as unknown as { manifest2?: { extra?: { expoClient?: { hostUri?: string } } } }).manifest2
+      ?.extra?.expoClient?.hostUri,
+  ];
+
+  for (const candidate of constantHostCandidates) {
+    if (!candidate) continue;
+    const host = candidate.split(':')[0];
+    if (host) {
+      return `http://${host}:8000`;
+    }
+  }
+
+  const scriptURL: string | undefined = NativeModules?.SourceCode?.scriptURL;
+  if (!scriptURL) return null;
+
+  const match = scriptURL.match(/^(?:https?|exp):\/\/([^/:]+)(?::\d+)?\//);
+  if (!match?.[1]) return null;
+
+  return `http://${match[1]}:8000`;
+}
+
 const API_AUTH_TOKEN = process.env.EXPO_PUBLIC_API_AUTH_TOKEN;
+
+function resolveApiBaseUrl(): string {
+  return process.env.EXPO_PUBLIC_API_BASE_URL || inferApiBaseUrlFromBundleHost() || 'http://localhost:8000';
+}
 
 function getHeaders(contentType: 'json' | 'none' = 'json'): Record<string, string> {
   const headers: Record<string, string> = {};
@@ -15,7 +45,8 @@ function getHeaders(contentType: 'json' | 'none' = 'json'): Record<string, strin
 }
 
 export async function calculateScore(request: CalculateRequest): Promise<ScoreResult> {
-  const response = await fetch(`${API_BASE_URL}/calculate`, {
+  const apiBaseUrl = resolveApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/calculate`, {
     method: 'POST',
     headers: getHeaders('json'),
     body: JSON.stringify(request),
@@ -29,6 +60,7 @@ export async function calculateScore(request: CalculateRequest): Promise<ScoreRe
 }
 
 export async function recognizeTiles(imageUri: string): Promise<RecognitionResult> {
+  const apiBaseUrl = resolveApiBaseUrl();
   const formData = new FormData();
   formData.append('image', {
     uri: imageUri,
@@ -36,7 +68,7 @@ export async function recognizeTiles(imageUri: string): Promise<RecognitionResul
     name: 'tiles.jpg',
   } as any);
 
-  const response = await fetch(`${API_BASE_URL}/recognize`, {
+  const response = await fetch(`${apiBaseUrl}/recognize`, {
     method: 'POST',
     headers: getHeaders('none'),
     body: formData,
@@ -62,7 +94,8 @@ export async function applyScoreToPlayers(params: {
   scores: number[];
   diff: number[];
 }> {
-  const response = await fetch(`${API_BASE_URL}/apply-score`, {
+  const apiBaseUrl = resolveApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/apply-score`, {
     method: 'POST',
     headers: getHeaders('json'),
     body: JSON.stringify({

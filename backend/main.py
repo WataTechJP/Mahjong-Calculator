@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -10,6 +10,9 @@ import base64
 import os
 import json
 import re
+import time
+import secrets
+from collections import defaultdict, deque
 from openai import OpenAI
 
 app = FastAPI(title="Mahjong Calculator API")
@@ -17,10 +20,30 @@ app = FastAPI(title="Mahjong Calculator API")
 # OpenAI client (環境変数 OPENAI_API_KEY から読み込み)
 openai_client = OpenAI() if os.getenv("OPENAI_API_KEY") else None
 
+# Security configuration
+API_AUTH_TOKEN = os.getenv("API_AUTH_TOKEN", "").strip()
+RECOGNIZE_RATE_LIMIT_COUNT = int(os.getenv("RECOGNIZE_RATE_LIMIT_COUNT", "10"))
+RECOGNIZE_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RECOGNIZE_RATE_LIMIT_WINDOW_SECONDS", "60"))
+MAX_IMAGE_SIZE_BYTES = int(os.getenv("MAX_IMAGE_SIZE_BYTES", str(5 * 1024 * 1024)))
+ALLOWED_IMAGE_CONTENT_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+
+# In-memory, per-IP rate limiter for /recognize
+recognize_request_history: dict[str, deque[float]] = defaultdict(deque)
+
+cors_origins_env = os.getenv(
+    "CORS_ALLOW_ORIGINS",
+    "http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006",
+)
+allow_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+allow_credentials = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+if "*" in allow_origins and allow_credentials:
+    # Invalid + unsafe CORS combination. Force credentials off when wildcard is used.
+    allow_credentials = False
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=allow_origins,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -93,14 +116,36 @@ def tiles_to_136(tile_input: TileInput) -> list[int]:
     )
 
 
+def verify_api_auth(x_api_key: Optional[str]) -> None:
+    """Validate API auth token when API_AUTH_TOKEN is configured."""
+    if not API_AUTH_TOKEN:
+        return
+    if not x_api_key or not secrets.compare_digest(x_api_key, API_AUTH_TOKEN):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def enforce_recognize_rate_limit(client_ip: str) -> None:
+    now = time.time()
+    request_times = recognize_request_history[client_ip]
+
+    while request_times and now - request_times[0] > RECOGNIZE_RATE_LIMIT_WINDOW_SECONDS:
+        request_times.popleft()
+
+    if len(request_times) >= RECOGNIZE_RATE_LIMIT_COUNT:
+        raise HTTPException(status_code=429, detail="Too many requests")
+
+    request_times.append(now)
+
+
 @app.get("/")
 async def root():
     return {"message": "Mahjong Calculator API", "version": "1.0.0"}
 
 
 @app.post("/calculate", response_model=ScoreResult)
-async def calculate_score(request: CalculateRequest):
+async def calculate_score(request: CalculateRequest, x_api_key: Optional[str] = Header(default=None)):
     """手牌から点数を計算"""
+    verify_api_auth(x_api_key)
     try:
         calculator = HandCalculator()
 
@@ -194,19 +239,20 @@ async def calculate_score(request: CalculateRequest):
             yaku=[{"name": str(y), "han": y.han_open if melds else y.han_closed} for y in result.yaku]
         )
 
-    except Exception as e:
+    except Exception:
         return ScoreResult(
             han=0,
             fu=0,
             cost={},
             yaku=[],
-            error=str(e)
+            error="calculation_failed"
         )
 
 
 @app.post("/apply-score")
-async def apply_score(request: ApplyScoreRequest):
+async def apply_score(request: ApplyScoreRequest, x_api_key: Optional[str] = Header(default=None)):
     """点数を4人の持ち点に反映"""
+    verify_api_auth(x_api_key)
     scores = request.scores.copy()
     honba_bonus = request.honba * 300  # 本場ボーナス
 
@@ -334,8 +380,19 @@ def parse_tile_response(response_text: str) -> list[RecognizedTile]:
 
 
 @app.post("/recognize", response_model=RecognitionResponse)
-async def recognize_tiles(image: UploadFile = File(...)):
+async def recognize_tiles(
+    request: Request,
+    image: UploadFile = File(...),
+    x_api_key: Optional[str] = Header(default=None),
+):
     """画像から牌を認識"""
+    verify_api_auth(x_api_key)
+    client_ip = request.client.host if request.client else "unknown"
+    enforce_recognize_rate_limit(client_ip)
+
+    content_type = (image.content_type or "").lower()
+    if content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported image format")
 
     # OpenAI APIキーが未設定の場合はダミーデータを返す（開発・テスト用）
     if not openai_client:
@@ -363,10 +420,9 @@ async def recognize_tiles(image: UploadFile = File(...)):
     try:
         # 画像をBase64エンコード
         image_content = await image.read()
+        if len(image_content) > MAX_IMAGE_SIZE_BYTES:
+            raise HTTPException(status_code=413, detail="Image too large")
         base64_image = base64.b64encode(image_content).decode("utf-8")
-
-        # 画像のMIMEタイプを判定
-        content_type = image.content_type or "image/jpeg"
 
         # Vision APIに送信
         response = openai_client.chat.completions.create(
@@ -418,10 +474,14 @@ async def recognize_tiles(image: UploadFile = File(...)):
             raw_response=raw_response
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
+        # Keep detailed error in server logs, return generic message to clients.
+        print(f"/recognize failed: {e}")
         return RecognitionResponse(
             tiles=[],
-            error=str(e)
+            error="recognition_failed"
         )
 
 

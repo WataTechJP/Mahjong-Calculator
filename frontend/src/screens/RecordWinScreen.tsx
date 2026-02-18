@@ -153,10 +153,15 @@ export function RecordWinScreen({ onBack }: Props) {
       yaku: [],
     };
 
-    if (isTsumo) {
-      applyTsumo(winnerIndex, scoreResult);
-    } else {
-      applyRon(winnerIndex, loserIndex!, scoreResult);
+    try {
+      if (isTsumo) {
+        await applyTsumo(winnerIndex, scoreResult);
+      } else {
+        await applyRon(winnerIndex, loserIndex!, scoreResult);
+      }
+    } catch (error) {
+      Alert.alert('エラー', '点数適用に失敗しました。サーバー接続を確認してください。');
+      return;
     }
 
     // 局を進める

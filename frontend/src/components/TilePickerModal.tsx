@@ -37,6 +37,7 @@ interface TilePickerModalProps {
   onSelect: (tileId: TileId) => void;
   currentTileId?: TileId;
   title?: string;
+  closeOnSelect?: boolean;
 }
 
 export function TilePickerModal({
@@ -45,12 +46,15 @@ export function TilePickerModal({
   onSelect,
   currentTileId,
   title = '牌を選択',
+  closeOnSelect = true,
 }: TilePickerModalProps) {
   const [selectedCategory, setSelectedCategory] = useState<TileCategory>('man');
 
   const handleSelect = (tileId: TileId) => {
     onSelect(tileId);
-    onClose();
+    if (closeOnSelect) {
+      onClose();
+    }
   };
 
   return (
@@ -112,7 +116,9 @@ export function TilePickerModal({
             style={styles.deleteButton}
             onPress={() => {
               onSelect('');
-              onClose();
+              if (closeOnSelect) {
+                onClose();
+              }
             }}
           >
             <Text style={styles.deleteText}>この牌を削除</Text>

@@ -7,12 +7,16 @@ import { StartGameScreen } from './src/screens/StartGameScreen';
 import { RecordWinScreen } from './src/screens/RecordWinScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { TileRecognitionScreen } from './src/screens/TileRecognitionScreen';
+import { ManualInputScreen } from './src/screens/ManualInputScreen';
+import { FinalResultScreen } from './src/screens/FinalResultScreen';
+import { useGameStore } from './src/store/gameStore';
 
-type Screen = 'scoreboard' | 'startGame' | 'recordWin' | 'history' | 'recognition';
+type Screen = 'scoreboard' | 'startGame' | 'recordWin' | 'history' | 'recognition' | 'manualInput';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('scoreboard');
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const isGameEnded = useGameStore((state) => state.isGameEnded);
 
   const handleScreenChange = (newScreen: Screen) => {
     Animated.timing(fadeAnim, {
@@ -30,6 +34,10 @@ export default function App() {
   };
 
   const renderScreen = () => {
+    if (isGameEnded) {
+      return <FinalResultScreen onStartNewGame={() => handleScreenChange('scoreboard')} />;
+    }
+
     switch (currentScreen) {
       case 'startGame':
         return <StartGameScreen onBack={() => handleScreenChange('scoreboard')} />;
@@ -39,6 +47,8 @@ export default function App() {
         return <HistoryScreen onBack={() => handleScreenChange('scoreboard')} />;
       case 'recognition':
         return <TileRecognitionScreen onBack={() => handleScreenChange('scoreboard')} />;
+      case 'manualInput':
+        return <ManualInputScreen onBack={() => handleScreenChange('scoreboard')} />;
       default:
         return (
           <ScoreboardScreen
@@ -46,6 +56,7 @@ export default function App() {
             onRecordWin={() => handleScreenChange('recordWin')}
             onShowHistory={() => handleScreenChange('history')}
             onRecognition={() => handleScreenChange('recognition')}
+            onManualInput={() => handleScreenChange('manualInput')}
           />
         );
     }

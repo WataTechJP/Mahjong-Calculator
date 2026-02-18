@@ -20,9 +20,11 @@ export interface RecognitionResult {
 
 // 風
 export type Wind = 'east' | 'south' | 'west' | 'north';
+export type GameMode = 'tonpu' | 'hanchan';
 
 // 副露の種類
 export type MeldType = 'chi' | 'pon' | 'kan' | 'ankan';
+export type MeldFrom = 'kamicha' | 'toimen' | 'shimocha';
 
 // 牌の入力形式
 export interface TileInput {
@@ -37,6 +39,7 @@ export interface Meld {
   type: MeldType;
   tiles: TileInput;
   opened: boolean;
+  from?: MeldFrom;
 }
 
 // 計算リクエスト
@@ -99,9 +102,15 @@ export interface HistoryEntry {
   timestamp: number;
   round: RoundState;
   result: {
-    type: 'ron' | 'tsumo' | 'draw' | 'chombo';
+    type: 'ron' | 'tsumo' | 'draw' | 'riichi' | 'chombo';
     winnerIndex?: number;
     loserIndex?: number;
+    riichiPlayerIndex?: number;
+    melds?: {
+      type: MeldType;
+      from?: MeldFrom;
+      opened: boolean;
+    }[];
     scoreResult?: ScoreResult;
     scoreDiffs: number[]; // [東, 南, 西, 北]
   };
@@ -113,4 +122,10 @@ export interface GameState {
   players: Player[];
   round: RoundState;
   history: HistoryEntry[];
+  isGameEnded: boolean;
+  endReason: string | null;
+  gameMode: GameMode;
+  enable30000Rule: boolean;
+  startedAt: number | null;
+  endedAt: number | null;
 }

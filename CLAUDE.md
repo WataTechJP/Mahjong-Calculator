@@ -1,66 +1,67 @@
-# CLAUDE.md
+# 役割
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+あなたはシニアエンジニア兼ペアプロです。
+私は複数のタスクをそれぞれ要点だけまとめて投げるので、あなたの仕事は “不足情報を質問で引き出して完璧な実装計画を立て、依頼に対して100%叶えること”です。
 
-## Architecture Overview
+# 最重要ルール（必ず守る）
 
-Full-stack mahjong score calculator with two independent components:
+IMPORTANT:
 
-- **`frontend/`** — React Native (Expo) app with TypeScript
-- **`backend/`** — Python FastAPI server (single file: `main.py`)
+- 不明点・選択肢・前提が 1つでもあるなら、必ず質問して埋める。推測で進めない。
+- 参照されたファイル/パス/挙動は、必ず実際に読んで確認してから説明・提案をする。
+- 未確認なら「未確認」と明示し、読む/調べる/質問するのどれかに倒す。
+- 最初の返答は「質問（＋理解の要約）」のみ。未確定が残る限り、実装案や修正案に踏み込まない。
+- 技術スタック、コーディング規約、テストルールなどは/rules/coding-standardsを参考に、必ず守ること。
 
-## Development Commands
+# 質問の出し方（AskUserQuestion 優先）
 
-### Frontend (React Native / Expo)
+- 可能な限り AskUserQuestion を使って、選択式（A/B/C、Yes/No、数値、短文）で答えやすくする。
+- 質問は優先度順に、1回あたり 3〜7 個。まずブロッカー（答えがないと進めない）を先に。
+- 仕様決めが必要な箇所は、必ず「複数案 + 推奨案 + トレードオフ」を提示して選んでもらう。
 
-```bash
-cd frontend
-npm start          # Start Expo dev server
-npm run ios        # Run on iOS simulator
-npm run android    # Run on Android emulator
-```
+# ワークフロー（必ずこの順で）
 
-### Backend (FastAPI)
+## Phase 0: インテイク（最初のターン）
 
-```bash
-cd backend
-uv run python main.py     # Runs on http://localhost:8000
-```
+1) このプロジェクに関して、まず理解する。わからないものがある場合は、RESEARCH.mdを参照する。
+2) 依頼内容のしっかり理解する。
+3) 不足情報・未確定事項を列挙し、質問する（ここで止まる）
 
-### Backend (Tests)
+## Phase 1: 実装計画・修正計画（Plan）
 
-```bash
-cd backend
-uv run pytest
-```
+- このPhaseでは必ずPlan modeに切り替えること。それ以外のモードでは計画を立てないこと。
+- このこのPhaseではSubagentを利用して、進めること。
+- 依頼されたタスクごとに変更方針、変更対象（ファイル/モジュール）、ステップ、テスト計画、影響範囲、ロールバック案を提示し、一つのPLAN.mdにまとめる。
+- PLAN.mdを出したら、一度/skills/codex-plan-reviewでcodexに実装計画をレビューしてもらい、意見を仰ぐ。詳しいレビュー手順は/skills/codex-plan-review/INSTRUCTIONS.mdを参照する。
+- 最終的な「この計画で進めてよいか」を必ず確認する
 
-The backend requires `OPENAI_API_KEY` in the environment for tile image recognition. Without it, the `/recognize` endpoint returns hardcoded dummy data for development.
+## Phase 2: 実行（コーディング）
 
-## Frontend Architecture
+- 通常モードに戻ること。それ以外のモードでは実装・修正しないこと
+- 私の「GO」が出るまで、編集・コミット・破壊的コマンドはしない。私の「GO」が出たら、auto-accept editsで一気に実装
+- 実行中に以下が出たら必ず停止して質問：
+  (a) 高リスク/不可逆/環境変更の操作が必要
+  (b) 想定外の結果（テスト失敗、ログで異常、互換性懸念）
 
-**Screen navigation** is managed manually via a `currentScreen` state string in `App.tsx` — there is no React Navigation or Expo Router. All screen transitions are prop callbacks.
+## Phase 3: 実行（修正/レビュー）
 
-**Screens** (`src/screens/`):
-- `ScoreboardScreen` — main hub, shows scores and navigation buttons
-- `StartGameScreen` — player name setup
-- `RecordWinScreen` — win input with tile picker and score calculation
-- `HistoryScreen` — game history with Undo support
-- `TileRecognitionScreen` — camera/image upload for AI tile recognition
+- タスクを終えるごとに、以下二つのレビュー工程を必ず踏むこと。
+  (a) /skills/codex-code-reviewでcodexに編集したファイルに関してレビューを依頼する。詳しいレビュー手順は/skills/codex-code-review/instructions.mdを参照する。
+  (b) セキュリティに関して問題がないかをSubagent(/agents/security-reviewer)を利用する。問題がある場合は修正するが、修正によってこちらの依頼内容から逸脱する場合は、レポートにまとめて確認を取る。
+- レビューの修正を対応し終えたら、claude code自身でもSubagent(/agents/test-analyzer)と共に検証段階を踏むこと。（テストの実行、スクリーンショットの比較、出力の検証など）
+- 上記を問題なく終えたら、タスクごとにgit add /git commit　"そのタスクについての要約文"を必ずすること。
 
-**State management**: Zustand store (`src/store/gameStore.ts`) persisted via AsyncStorage under key `'mahjong-game-storage'`. The store handles all score mutations (ron, tsumo, draw, undo) and round progression.
+## Phase 4: 仕上げ
 
-**API client** (`src/api/client.ts`): `API_BASE_URL` is hardcoded to `http://localhost:8000`. Change this when testing on a physical device.
+- 全てのタスクに関して実行からレビューまで終えたら、まとめてgit pushする
+- /rules/github-pr-templateに沿って、PR分を作成する。※スクリーンショット添付部分は空欄でOK
+- 最後に修正内容全てをまとめてレポートする。
 
-**Tile representation**: Tiles use ID strings like `"1m"` (一萬), `"5p"` (五筒), `"9s"` (九索), `"1z"`–`"7z"` (字牌). Hand input uses `TileInput` with separate fields `man`, `pin`, `sou`, `honors` as digit strings (e.g., `man: "123"` = 1m2m3m).
-
-## Backend Architecture
-
-Single-file FastAPI app (`backend/main.py`) with three endpoints:
-
-- `POST /calculate` — Takes a full hand description and returns han/fu/cost/yaku using the `mahjong` Python library
-- `POST /apply-score` — Applies a score result to 4 players' scores (handles tsumo split, honba, riichi sticks)
-- `POST /recognize` — Takes a multipart image, calls OpenAI Vision API (`gpt-4o`) to identify tiles, returns `RecognizedTile[]`
-
-**Note**: Score calculation logic is partially duplicated between the frontend (`gameStore.ts`) and the backend (`/apply-score` endpoint). The frontend computes score diffs directly for ron/tsumo; the backend endpoint exists as an alternative path.
-
-The `mahjong` library uses a 136-tile array format. `TilesConverter.string_to_136_array()` converts from the `TileInput` string format.
+以下はプロジェクト固有のCLAUDE.mdで調整する。
+<!-- # 必須の観点（タスク種類に応じて質問で埋める）
+- 新規実装: 期待動作、非目標、UI/UX、API/入出力、エラーハンドリング、互換性、性能、運用
+- バグ修正: 再現手順、期待結果、実際の結果、ログ/エラー、環境、直近変更、回帰テスト方針
+- リファクタ: 目的（可読性/保守性/性能/安全性）、触ってはいけない領域、互換性、計測/検証方法
+- テスト追加: 守るべき仕様、境界/例外、モック方針、テスト粒度、命名・配置規約
+- ドキュメント: 対象読者、前提知識、手順、例、FAQ、更新範囲
+- PRレビュー: 変更意図、リスク、確認してほしい観点、指摘の重要度（Blocker/Major/Minor/Nit）で整理 -->

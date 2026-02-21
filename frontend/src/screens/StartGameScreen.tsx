@@ -17,7 +17,7 @@ interface Props {
 
 export function StartGameScreen({ onBack }: Props) {
   const [names, setNames] = useState(['', '', '', '']);
-  const [gameMode, setGameMode] = useState<GameMode>('hanchan');
+  const [gameMode, setGameMode] = useState<GameMode>('tonpu');
   const [enable30000Rule] = useState(false);
   const { startGame } = useGameStore();
   const borderAnimations = useRef(names.map(() => new Animated.Value(0))).current;

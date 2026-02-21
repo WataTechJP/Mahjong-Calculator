@@ -12,6 +12,7 @@ Full-stack mahjong score calculator with two independent components:
 ## Development Commands
 
 ### Frontend (React Native / Expo)
+
 ```bash
 cd frontend
 npm start          # Start Expo dev server
@@ -20,10 +21,17 @@ npm run android    # Run on Android emulator
 ```
 
 ### Backend (FastAPI)
+
 ```bash
 cd backend
-source venv/bin/activate
-python main.py     # Runs on http://localhost:8000
+uv run python main.py     # Runs on http://localhost:8000
+```
+
+### Backend (Tests)
+
+```bash
+cd backend
+uv run pytest
 ```
 
 The backend requires `OPENAI_API_KEY` in the environment for tile image recognition. Without it, the `/recognize` endpoint returns hardcoded dummy data for development.

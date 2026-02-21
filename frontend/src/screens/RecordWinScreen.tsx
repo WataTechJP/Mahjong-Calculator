@@ -31,7 +31,6 @@ export function RecordWinScreen({ onBack }: Props) {
   const [loserIndex, setLoserIndex] = useState<number | null>(null);
   const [han, setHan] = useState<number>(1);
   const [fu, setFu] = useState<number>(30);
-  const [isRiichi, setIsRiichi] = useState(false);
 
   const previewScale = useRef(new Animated.Value(1)).current;
   const previewOpacity = useRef(new Animated.Value(1)).current;
@@ -165,7 +164,10 @@ export function RecordWinScreen({ onBack }: Props) {
                 if (loserIndex === index) setLoserIndex(null);
               }}
             >
-              <Text style={styles.playerWind}>{WIND_LABELS[player.wind]}</Text>
+              <View style={styles.playerWindRow}>
+                <Text style={styles.playerWind}>{WIND_LABELS[player.wind]}</Text>
+                {index === round.dealerIndex && <Text style={styles.playerDealerLabel}>親</Text>}
+              </View>
               <Text style={styles.playerName}>{player.name}</Text>
             </TouchableOpacity>
           ))}
@@ -188,7 +190,10 @@ export function RecordWinScreen({ onBack }: Props) {
                 onPress={() => winnerIndex !== index && setLoserIndex(index)}
                 disabled={winnerIndex === index}
               >
-                <Text style={styles.playerWind}>{WIND_LABELS[player.wind]}</Text>
+                <View style={styles.playerWindRow}>
+                  <Text style={styles.playerWind}>{WIND_LABELS[player.wind]}</Text>
+                  {index === round.dealerIndex && <Text style={styles.playerDealerLabel}>親</Text>}
+                </View>
                 <Text style={styles.playerName}>{player.name}</Text>
               </TouchableOpacity>
             ))}
@@ -228,16 +233,6 @@ export function RecordWinScreen({ onBack }: Props) {
           </View>
         </View>
       )}
-
-      {/* リーチ */}
-      <View style={styles.section}>
-        <TouchableOpacity
-          style={[styles.riichiButton, isRiichi && styles.riichiButtonActive]}
-          onPress={() => setIsRiichi(!isRiichi)}
-        >
-          <Text style={[styles.riichiText, isRiichi && styles.riichiTextActive]}>リーチ</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* 点数プレビュー */}
       <Animated.View
@@ -347,9 +342,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFD700',
   },
+  playerWindRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   playerName: {
     fontSize: 14,
     color: '#fff',
+  },
+  playerDealerLabel: {
+    fontSize: 11,
+    color: '#FFD700',
+    fontWeight: '700',
   },
   hanRow: {
     flexDirection: 'row',
@@ -381,10 +386,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   fuButton: {
-    paddingHorizontal: 12,
+    width: 50,
     paddingVertical: 8,
     borderRadius: 6,
     backgroundColor: '#2d2d44',
+    alignItems: 'center',
   },
   fuButtonActive: {
     backgroundColor: '#9b59b6',
@@ -394,23 +400,6 @@ const styles = StyleSheet.create({
     color: '#aaa',
   },
   fuTextActive: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  riichiButton: {
-    padding: 14,
-    borderRadius: 8,
-    backgroundColor: '#2d2d44',
-    alignItems: 'center',
-  },
-  riichiButtonActive: {
-    backgroundColor: '#e74c3c',
-  },
-  riichiText: {
-    fontSize: 16,
-    color: '#aaa',
-  },
-  riichiTextActive: {
     color: '#fff',
     fontWeight: 'bold',
   },

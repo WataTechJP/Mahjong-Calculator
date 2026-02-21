@@ -69,6 +69,66 @@ cd frontend
 npm run precommit:check
 ```
 
+## Dockerでバックエンドを起動する
+
+このリポジトリの Docker 設定は **バックエンド（FastAPI）のみ** です。
+フロントエンド（Expo）は通常どおり `npm start` で起動してください。
+
+### 1. 事前準備（初回のみ）
+
+```bash
+cp .env.example .env
+```
+
+必要に応じて `.env` の `OPENAI_API_KEY` などを設定します。
+
+### 2. 開発用（ホットリロードあり）
+
+```bash
+docker compose up --build
+```
+
+- API URL: `http://localhost:8000`
+- `docker-compose.yml` では `./backend:/app` をマウントしているため、コード変更が即時反映されます。
+
+停止:
+
+```bash
+docker compose down
+```
+
+### 3. 本番想定で起動（ローカル確認用）
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+停止:
+
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
+### 4. よく使う Docker コマンド
+
+ログ確認:
+
+```bash
+docker compose logs -f backend
+```
+
+コンテナ内で pytest 実行:
+
+```bash
+docker compose exec backend uv run pytest
+```
+
+イメージ再ビルド（キャッシュなし）:
+
+```bash
+docker compose build --no-cache backend
+```
+
 ## 品質チェック / テスト
 
 ### Frontend（TypeScript strict, ESLint, Prettier, Jest）

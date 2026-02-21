@@ -48,16 +48,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --group dev
 
       - name: Syntax check
-        run: python -m py_compile main.py score_engine.py
+        run: uv run python -m py_compile main.py score_engine.py
 
       - name: Run tests
-        run: pytest -q
+        run: uv run pytest -q

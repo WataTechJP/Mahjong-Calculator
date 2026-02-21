@@ -167,7 +167,9 @@ export function ScoreboardScreen({
   };
 
   const toggleTenpaiSelection = (playerIndex: number) => {
-    setTenpaiSelections((prev) => prev.map((selected, index) => (index === playerIndex ? !selected : selected)));
+    setTenpaiSelections((prev) =>
+      prev.map((selected, index) => (index === playerIndex ? !selected : selected))
+    );
   };
 
   const handleConfirmDraw = () => {
@@ -265,7 +267,7 @@ export function ScoreboardScreen({
           onPress={() => setIsFullscreenScoreView(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.utilityTopButtonText}>横向き</Text>
+          <Text style={styles.utilityTopButtonText}>Scoreboard</Text>
         </TouchableOpacity>
       </View>
       {/* 局情報 */}
@@ -372,7 +374,11 @@ export function ScoreboardScreen({
           >
             <Text style={styles.compactUtilityButtonText}>履歴</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.compactDangerButton} onPress={resetGame} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.compactDangerButton}
+            onPress={resetGame}
+            activeOpacity={0.7}
+          >
             <Text style={styles.compactDangerButtonText}>ゲーム終了</Text>
           </TouchableOpacity>
         </View>

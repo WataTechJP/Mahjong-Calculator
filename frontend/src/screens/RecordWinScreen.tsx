@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   Animated,
+  Modal,
 } from 'react-native';
 import { useGameStore } from '../store/gameStore';
 import type { Wind, ScoreResult } from '../types/mahjong';
@@ -23,6 +24,8 @@ const WIND_LABELS: Record<Wind, string> = {
   north: '北',
 };
 
+const SCORE_NOTICES = ['点数は一般的な麻雀点数早見表を参考にしています。'];
+
 export function RecordWinScreen({ onBack }: Props) {
   const { players, round, applyRon, applyTsumo, advanceRound } = useGameStore();
 
@@ -31,6 +34,7 @@ export function RecordWinScreen({ onBack }: Props) {
   const [loserIndex, setLoserIndex] = useState<number | null>(null);
   const [han, setHan] = useState<number>(1);
   const [fu, setFu] = useState<number>(30);
+  const [isNoticeModalVisible, setIsNoticeModalVisible] = useState(false);
 
   const previewScale = useRef(new Animated.Value(1)).current;
   const previewOpacity = useRef(new Animated.Value(1)).current;
@@ -118,11 +122,27 @@ export function RecordWinScreen({ onBack }: Props) {
     fu,
     isWinnerDealer,
   });
+  const isSpecialTwoHanTwentyFiveFu = han === 2 && fu === 25;
+  const specialTwoHanTwentyFiveFuLabel = isSpecialTwoHanTwentyFiveFu
+    ? isWinnerDealer
+      ? '800オール'
+      : '800/800'
+    : null;
+  const dealerTsumoInfo = isWinnerDealer
+    ? calculateScoreCost({
+        isTsumo: true,
+        han,
+        fu,
+        isWinnerDealer: true,
+      })
+    : null;
   const displayScore = scoreInfo
     ? isTsumo
-      ? isWinnerDealer
-        ? `${scoreInfo.main}オール`
-        : `${scoreInfo.main}/${scoreInfo.additional}`
+      ? isSpecialTwoHanTwentyFiveFu
+        ? `${scoreInfo.main + scoreInfo.additional * 2}点`
+        : isWinnerDealer
+          ? `${scoreInfo.main}オール`
+          : `${scoreInfo.main}/${scoreInfo.additional}`
       : `${scoreInfo.main}点`
     : '---';
 
@@ -246,6 +266,13 @@ export function RecordWinScreen({ onBack }: Props) {
       >
         <Text style={styles.previewLabel}>点数</Text>
         <Text style={styles.previewScore}>{displayScore}</Text>
+        {specialTwoHanTwentyFiveFuLabel ? (
+          <Text style={styles.previewDealerAll}>{specialTwoHanTwentyFiveFuLabel}</Text>
+        ) : (
+          dealerTsumoInfo && (
+            <Text style={styles.previewDealerAll}>{dealerTsumoInfo.main}オール</Text>
+          )
+        )}
         {han >= 5 && (
           <Text style={styles.previewYakuman}>
             {han === 5
@@ -259,6 +286,14 @@ export function RecordWinScreen({ onBack }: Props) {
                     : '役満'}
           </Text>
         )}
+        <Text style={styles.previewNotice}>※点数は一般的な麻雀点数早見表を参考にしています</Text>
+        <TouchableOpacity
+          style={styles.noticeButton}
+          onPress={() => setIsNoticeModalVisible(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.noticeButtonText}>注意事項をこちら</Text>
+        </TouchableOpacity>
       </Animated.View>
 
       {/* アクション */}
@@ -270,6 +305,31 @@ export function RecordWinScreen({ onBack }: Props) {
           <Text style={styles.cancelButtonText}>キャンセル</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={isNoticeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsNoticeModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>注意事項</Text>
+            {SCORE_NOTICES.map((notice, index) => (
+              <Text key={index} style={styles.modalNoticeItem}>
+                ※{notice}
+              </Text>
+            ))}
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setIsNoticeModalVisible(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalCloseButtonText}>閉じる</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -420,16 +480,41 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     marginTop: 8,
   },
+  previewDealerAll: {
+    marginTop: 2,
+    fontSize: 14,
+    color: '#9ec5ff',
+  },
   previewYakuman: {
     fontSize: 18,
     color: '#e74c3c',
     marginTop: 4,
   },
+  previewNotice: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#b9c0d0',
+    textAlign: 'center',
+  },
+  noticeButton: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#6a7192',
+  },
+  noticeButtonText: {
+    fontSize: 12,
+    color: '#d8ddf0',
+  },
   actions: {
+    flexDirection: 'row',
     gap: 12,
     paddingBottom: 40,
   },
   confirmButton: {
+    flex: 1,
     backgroundColor: '#4CAF50',
     padding: 16,
     borderRadius: 8,
@@ -441,6 +526,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   cancelButton: {
+    flex: 1,
     backgroundColor: '#444',
     padding: 14,
     borderRadius: 8,
@@ -449,5 +535,43 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#fff',
     fontSize: 16,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#23233a',
+    borderRadius: 12,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 12,
+  },
+  modalNoticeItem: {
+    fontSize: 14,
+    color: '#d8ddf0',
+    lineHeight: 21,
+    marginBottom: 8,
+  },
+  modalCloseButton: {
+    marginTop: 8,
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

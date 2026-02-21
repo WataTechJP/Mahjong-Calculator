@@ -118,7 +118,26 @@ export function RecordWinScreen({ onBack }: Props) {
     fu,
     isWinnerDealer,
   });
-  const displayScore = scoreInfo
+  const isSpecialTwoHanTwentyFiveFu = han === 2 && fu === 25;
+  const specialAllInfo = isSpecialTwoHanTwentyFiveFu
+    ? calculateScoreCost({
+        isTsumo: true,
+        han,
+        fu,
+        isWinnerDealer,
+      })
+    : null;
+  const dealerTsumoInfo = isWinnerDealer
+    ? calculateScoreCost({
+        isTsumo: true,
+        han,
+        fu,
+        isWinnerDealer: true,
+      })
+    : null;
+  const displayScore = isSpecialTwoHanTwentyFiveFu
+    ? '----'
+    : scoreInfo
     ? isTsumo
       ? isWinnerDealer
         ? `${scoreInfo.main}オール`
@@ -246,6 +265,11 @@ export function RecordWinScreen({ onBack }: Props) {
       >
         <Text style={styles.previewLabel}>点数</Text>
         <Text style={styles.previewScore}>{displayScore}</Text>
+        {specialAllInfo ? (
+          <Text style={styles.previewDealerAll}>{specialAllInfo.main}オール</Text>
+        ) : (
+          dealerTsumoInfo && <Text style={styles.previewDealerAll}>{dealerTsumoInfo.main}オール</Text>
+        )}
         {han >= 5 && (
           <Text style={styles.previewYakuman}>
             {han === 5
@@ -419,6 +443,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFD700',
     marginTop: 8,
+  },
+  previewDealerAll: {
+    marginTop: 2,
+    fontSize: 14,
+    color: '#9ec5ff',
   },
   previewYakuman: {
     fontSize: 18,

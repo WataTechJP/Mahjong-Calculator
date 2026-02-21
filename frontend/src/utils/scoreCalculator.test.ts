@@ -7,11 +7,18 @@ const CHILD_RON_TABLE: Record<number, Record<number, number>> = {
   4: { 25: 6400, 30: 7700, 40: 8000, 50: 8000, 60: 8000, 70: 8000, 80: 8000, 90: 8000, 100: 8000, 110: 8000 },
 };
 
+const DEALER_RON_TABLE: Record<number, Record<number, number>> = {
+  1: { 30: 1500, 40: 2000, 50: 2400, 60: 2900, 70: 3400, 80: 3900, 90: 4400, 100: 4800, 110: 5300 },
+  2: { 25: 2400, 30: 2900, 40: 3900, 50: 4800, 60: 5800, 70: 6800, 80: 7700, 90: 8700, 100: 9600, 110: 10600 },
+  3: { 25: 4800, 30: 5800, 40: 7700, 50: 9600, 60: 11600, 70: 12000, 80: 12000, 90: 12000, 100: 12000, 110: 12000 },
+  4: { 25: 9600, 30: 11600, 40: 12000, 50: 12000, 60: 12000, 70: 12000, 80: 12000, 90: 12000, 100: 12000, 110: 12000 },
+};
+
 const CHILD_TSUMO_TABLE: Record<number, Record<number, [number, number]>> = {
   1: { 30: [500, 300], 40: [700, 400], 50: [800, 400], 60: [1000, 500], 70: [1200, 600], 80: [1300, 700], 90: [1500, 800], 100: [1600, 800], 110: [1800, 900] },
-  2: { 25: [800, 400], 30: [1000, 500], 40: [1300, 700], 50: [1600, 800], 60: [2000, 1000], 70: [2300, 1200], 80: [2600, 1300], 90: [2900, 1500], 100: [3200, 1600], 110: [3600, 1800] },
-  3: { 25: [1600, 800], 30: [2000, 1000], 40: [2600, 1300], 50: [3200, 1600], 60: [3900, 2000], 70: [4000, 2000], 80: [4000, 2000], 90: [4000, 2000], 100: [4000, 2000], 110: [4000, 2000] },
-  4: { 25: [3200, 1600], 30: [3900, 2000], 40: [4000, 2000], 50: [4000, 2000], 60: [4000, 2000], 70: [4000, 2000], 80: [4000, 2000], 90: [4000, 2000], 100: [4000, 2000], 110: [4000, 2000] },
+  2: { 20: [700, 400], 25: [800, 400], 30: [1000, 500], 40: [1300, 700], 50: [1600, 800], 60: [2000, 1000], 70: [2300, 1200], 80: [2600, 1300], 90: [2900, 1500], 100: [3200, 1600], 110: [3600, 1800] },
+  3: { 20: [1300, 700], 25: [1600, 800], 30: [2000, 1000], 40: [2600, 1300], 50: [3200, 1600], 60: [3900, 2000], 70: [4000, 2000], 80: [4000, 2000], 90: [4000, 2000], 100: [4000, 2000], 110: [4000, 2000] },
+  4: { 20: [2600, 1300], 25: [3200, 1600], 30: [3900, 2000], 40: [4000, 2000], 50: [4000, 2000], 60: [4000, 2000], 70: [4000, 2000], 80: [4000, 2000], 90: [4000, 2000], 100: [4000, 2000], 110: [4000, 2000] },
 };
 
 const LIMIT_HAND_CHILD_RON: Record<number, number> = {
@@ -24,6 +31,18 @@ const LIMIT_HAND_CHILD_RON: Record<number, number> = {
   11: 24000,
   12: 24000,
   13: 32000,
+};
+
+const LIMIT_HAND_DEALER_RON: Record<number, number> = {
+  5: 12000,
+  6: 18000,
+  7: 18000,
+  8: 24000,
+  9: 24000,
+  10: 24000,
+  11: 36000,
+  12: 36000,
+  13: 48000,
 };
 
 const LIMIT_HAND_CHILD_TSUMO: Record<number, [number, number]> = {
@@ -50,7 +69,7 @@ describe('calculateScoreCost', () => {
     expect(result).toEqual({ main: 5200, additional: 0 });
   });
 
-  test('returns rounded ron score for dealer winner', () => {
+  test('returns ron score from table for dealer winner', () => {
     const result = calculateScoreCost({
       isTsumo: false,
       han: 3,
@@ -58,7 +77,7 @@ describe('calculateScoreCost', () => {
       isWinnerDealer: true,
     });
 
-    expect(result).toEqual({ main: 7800, additional: 0 });
+    expect(result).toEqual({ main: 7700, additional: 0 });
   });
 
   test('returns tsumo split for non-dealer winner', () => {
@@ -127,6 +146,17 @@ describe('calculateScoreCost', () => {
     expect(result).toEqual({ main: 3900, additional: 0 });
   });
 
+  test('supports dealer ron 1han 110fu', () => {
+    const result = calculateScoreCost({
+      isTsumo: false,
+      han: 1,
+      fu: 110,
+      isWinnerDealer: true,
+    });
+
+    expect(result).toEqual({ main: 5300, additional: 0 });
+  });
+
   test('supports child tsumo 2han 80fu', () => {
     const result = calculateScoreCost({
       isTsumo: true,
@@ -147,6 +177,58 @@ describe('calculateScoreCost', () => {
     });
 
     expect(result).toEqual({ main: 3200, additional: 3200 });
+  });
+
+  test('supports 20fu tsumo values requested for dealer and child', () => {
+    expect(
+      calculateScoreCost({
+        isTsumo: true,
+        han: 2,
+        fu: 20,
+        isWinnerDealer: true,
+      })
+    ).toEqual({ main: 700, additional: 700 });
+    expect(
+      calculateScoreCost({
+        isTsumo: true,
+        han: 3,
+        fu: 20,
+        isWinnerDealer: true,
+      })
+    ).toEqual({ main: 1300, additional: 1300 });
+    expect(
+      calculateScoreCost({
+        isTsumo: true,
+        han: 4,
+        fu: 20,
+        isWinnerDealer: true,
+      })
+    ).toEqual({ main: 2600, additional: 2600 });
+
+    expect(
+      calculateScoreCost({
+        isTsumo: true,
+        han: 2,
+        fu: 20,
+        isWinnerDealer: false,
+      })
+    ).toEqual({ main: 700, additional: 400 });
+    expect(
+      calculateScoreCost({
+        isTsumo: true,
+        han: 3,
+        fu: 20,
+        isWinnerDealer: false,
+      })
+    ).toEqual({ main: 1300, additional: 700 });
+    expect(
+      calculateScoreCost({
+        isTsumo: true,
+        han: 4,
+        fu: 20,
+        isWinnerDealer: false,
+      })
+    ).toEqual({ main: 2600, additional: 1300 });
   });
 
   test('caps at mangan for 3han 70fu', () => {
@@ -219,7 +301,7 @@ describe('calculateScoreCost', () => {
             fu,
             isWinnerDealer: true,
           })
-        ).toEqual({ main: Math.ceil((childRon * 1.5) / 100) * 100, additional: 0 });
+        ).toEqual({ main: DEALER_RON_TABLE[han][fu], additional: 0 });
 
         expect(
           calculateScoreCost({
@@ -263,7 +345,7 @@ describe('calculateScoreCost', () => {
           fu: 110,
           isWinnerDealer: true,
         })
-      ).toEqual({ main: Math.ceil((childRon * 1.5) / 100) * 100, additional: 0 });
+      ).toEqual({ main: LIMIT_HAND_DEALER_RON[han], additional: 0 });
 
       expect(
         calculateScoreCost({

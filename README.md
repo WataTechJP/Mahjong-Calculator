@@ -50,6 +50,14 @@ npm run ios
 npm run android
 ```
 
+### 2.1 API接続先の自動判定
+
+- 通常は `EXPO_PUBLIC_API_BASE_URL` を設定しなくても動きます。
+- `frontend/src/api/client.ts` が Expo の bundle host から `http://<MacのIP>:8000` を自動推定します。
+- iOS シミュレータは `127.0.0.1:8000`、Android エミュレータは `10.0.2.2:8000` に自動フォールバックします。
+- 実機で使う場合は Expo を `LAN` モードで起動し、Mac と同じネットワークに接続してください。
+- `Tunnel` モードではローカル FastAPI に届かないため、必要な場合だけ `frontend/.env` に `EXPO_PUBLIC_API_BASE_URL=http://<MacのIP>:8000` を明示してください。
+
 ### 3. commit時の自動チェック（typecheck + lint + format）
 
 ```bash
